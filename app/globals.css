@@ -7,7 +7,8 @@
 :root {
   --color-midnight: #0A1A3A;
   --color-indigo: #1a1a4a;
-  --color-gold: #D4AF37;
+  --color-gold: #daa756;
+  --color-taupe: #b4aba6;
 }
 
 /* Dark theme (default) */
@@ -28,7 +29,7 @@
 
 body {
   margin: 0;
-  font-family: var(--font-inter), 'Inter', sans-serif;
+  font-family: var(--font-montserrat), 'Inter', sans-serif;
   overflow-x: hidden;
 }
 
@@ -48,7 +49,7 @@ h3,
 h4,
 h5,
 h6 {
-  font-family: var(--font-playfair), 'Playfair Display', serif;
+  font-family: var(--font-poppins), 'Playfair Display', serif;
 }
 
 /* Custom Scrollbar - Dark Mode */
@@ -91,21 +92,21 @@ h6 {
 
 /* Utilities */
 .text-gold {
-  color: #D4AF37;
+  color: #daa756;
 }
 
 .bg-gold {
-  background-color: #D4AF37;
+  background-color: #daa756;
 }
 
 .border-gold {
-  border-color: #D4AF37;
+  border-color: #daa756;
 }
 
 .gold-glow {
-  box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
+  box-shadow: 0 0 15px rgba(218, 167, 86, 0.3);
 }
 
 .gold-glow-text {
-  text-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
+  text-shadow: 0 0 10px rgba(218, 167, 86, 0.5);
 }

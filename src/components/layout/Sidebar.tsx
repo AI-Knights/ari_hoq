@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter, usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -84,10 +85,18 @@ export function Sidebar() {
       {/* Logo Area */}
       <div className="p-6 border-b border-white/5">
         <button
-          onClick={() => router.push('/')}
-          className="text-xl font-bold font-serif text-white tracking-wide">
-
-          Quran<span className="text-[#D4AF37]">Partners</span>
+          onClick={() => router.push('/dashboard')}
+          className="flex items-center gap-3 w-full group">
+          <div className="relative h-10 w-28 xs:h-12 xs:w-32 sm:h-14 sm:w-36 md:h-16 md:w-44">
+            <Image
+              src="/logo.png"
+              alt="QuranPartners Logo"
+              fill
+              className="object-contain"
+              priority
+              sizes="(max-width: 375px) 112px, (max-width: 640px) 128px, (max-width: 768px) 144px, 176px"
+            />
+          </div>
         </button>
       </div>
 
@@ -176,15 +185,25 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Mobile Menu Button */}
-      <div className="lg:hidden fixed top-4 left-4 z-50">
+      {/* Mobile Top Bar */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 h-16 bg-[#0A1A3A] border-b border-white/5 flex items-center justify-between px-4 shadow-sm">
+        <Link href="/dashboard" className="flex items-center">
+          <div className="relative h-10 w-28">
+            <Image
+              src="/logo.png"
+              alt="QuranPartners Logo"
+              fill
+              className="object-contain"
+              priority
+              sizes="112px"
+            />
+          </div>
+        </Link>
         <button
           onClick={() => setIsMobileOpen(!isMobileOpen)}
-          className="p-2 rounded-lg bg-[#0A1A3A] border border-white/10 text-white shadow-lg">
-
+          className="p-2 rounded-lg text-white hover:bg-white/5 transition-colors">
           {isMobileOpen ?
             <X className="w-6 h-6" /> :
-
             <Menu className="w-6 h-6" />
           }
         </button>

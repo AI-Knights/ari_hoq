@@ -2,7 +2,8 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Instagram, Youtube, Facebook, Twitter } from 'lucide-react';
+import Image from 'next/image';
+import { Facebook, Twitter, Instagram, Linkedin, Mail, Phone, MapPin, Youtube } from 'lucide-react';
 
 export function NewFooter() {
     return (
@@ -45,68 +46,91 @@ export function NewFooter() {
             </section>
 
             {/* Footer */}
-            <footer className="relative z-10 border-t dark:border-white/5 light:border-gray-200 dark:bg-[#0A1A3A]/80 light:bg-white backdrop-blur-md py-12">
-                <div className="container mx-auto px-4">
-                    <div className="grid md:grid-cols-4 gap-8 mb-8">
-                        {/* Quran Partner */}
-                        <div>
-                            <Link href="/" className="text-xl font-bold font-serif dark:text-white light:text-gray-900 mb-4 inline-block">
-                                Quran<span className="dark:text-[#D4AF37] light:text-teal-600">Partners</span>
+            <footer className="relative z-10 border-t dark:border-white/5 light:border-gray-200 dark:bg-[#0A1A3A]/80 light:bg-white backdrop-blur-md py-8 md:py-12">
+                <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 md:gap-x-12 md:gap-y-8 mb-8">
+                        {/* Brand & Description */}
+                        <div className="flex flex-col items-center sm:items-start">
+                            <Link href="/" className="block mb-6 md:mb-10 group w-full max-w-[200px] sm:max-w-[220px] md:max-w-[240px] lg:max-w-[280px]">
+                                <Image
+                                    src="/logo.png"
+                                    alt="QuranPartners Logo"
+                                    width={280}
+                                    height={280}
+                                    className="w-full h-auto object-contain"
+                                    priority
+                                />
                             </Link>
-                            <p className="text-sm dark:text-gray-400 light:text-gray-600 mb-4">
-                                Connecting Muslime who pursue
+                            <p className="text-sm dark:text-gray-400 light:text-gray-600 mb-4 text-center sm:text-left leading-relaxed">
+                                Connecting Muslims who pursue
                                 <br />
                                 an unbreakable Quran learning
                                 <br />
                                 habit together.
                             </p>
-                            <div className="flex gap-3">
-                                <a href="#" className="w-8 h-8 rounded flex items-center justify-center dark:bg-teal-600 light:bg-teal-500 dark:text-white light:text-white hover:opacity-80 transition-opacity">
+                            <div className="flex gap-3 justify-center sm:justify-start">
+                                <a
+                                    href="#"
+                                    className="w-8 h-8 rounded flex items-center justify-center dark:bg-teal-600 light:bg-teal-500 dark:text-white light:text-white hover:opacity-80 transition-opacity"
+                                    aria-label="Instagram"
+                                >
                                     <Instagram className="w-4 h-4" />
                                 </a>
-                                <a href="#" className="w-8 h-8 rounded flex items-center justify-center dark:bg-teal-600 light:bg-teal-500 dark:text-white light:text-white hover:opacity-80 transition-opacity">
+                                <a
+                                    href="#"
+                                    className="w-8 h-8 rounded flex items-center justify-center dark:bg-teal-600 light:bg-teal-500 dark:text-white light:text-white hover:opacity-80 transition-opacity"
+                                    aria-label="YouTube"
+                                >
                                     <Youtube className="w-4 h-4" />
                                 </a>
-                                <a href="#" className="w-8 h-8 rounded flex items-center justify-center dark:bg-[#D4AF37] light:bg-yellow-500 dark:text-white light:text-white hover:opacity-80 transition-opacity">
+                                <a
+                                    href="#"
+                                    className="w-8 h-8 rounded flex items-center justify-center dark:bg-[#D4AF37] light:bg-yellow-500 dark:text-white light:text-white hover:opacity-80 transition-opacity"
+                                    aria-label="Facebook"
+                                >
                                     <Facebook className="w-4 h-4" />
                                 </a>
-                                <a href="#" className="w-8 h-8 rounded flex items-center justify-center dark:bg-[#D4AF37] light:bg-yellow-500 dark:text-white light:text-white hover:opacity-80 transition-opacity">
+                                <a
+                                    href="#"
+                                    className="w-8 h-8 rounded flex items-center justify-center dark:bg-[#D4AF37] light:bg-yellow-500 dark:text-white light:text-white hover:opacity-80 transition-opacity"
+                                    aria-label="Twitter"
+                                >
                                     <Twitter className="w-4 h-4" />
                                 </a>
                             </div>
                         </div>
 
                         {/* Navigation */}
-                        <div>
-                            <h4 className="dark:text-white light:text-gray-900 font-bold mb-4">Navigation</h4>
+                        <div className="text-center sm:text-left">
+                            <h4 className="dark:text-white light:text-gray-900 font-bold mb-4 text-base">Navigation</h4>
                             <ul className="space-y-2 text-sm dark:text-gray-400 light:text-gray-600">
-                                <li><Link href="/" className="hover:dark:text-[#D4AF37] hover:light:text-teal-600 transition-colors">Home</Link></li>
-                                <li><Link href="/about" className="hover:dark:text-[#D4AF37] hover:light:text-teal-600 transition-colors">About</Link></li>
-                                <li><Link href="/about" className="hover:dark:text-[#D4AF37] hover:light:text-teal-600 transition-colors">What We do</Link></li>
-                                <li><Link href="/contact" className="hover:dark:text-[#D4AF37] hover:light:text-teal-600 transition-colors">Contact</Link></li>
+                                <li><Link href="/" className="hover:dark:text-[#D4AF37] hover:light:text-teal-600 transition-colors inline-block">Home</Link></li>
+                                <li><Link href="/about" className="hover:dark:text-[#D4AF37] hover:light:text-teal-600 transition-colors inline-block">About</Link></li>
+                                <li><Link href="/about" className="hover:dark:text-[#D4AF37] hover:light:text-teal-600 transition-colors inline-block">What We do</Link></li>
+                                <li><Link href="/contact" className="hover:dark:text-[#D4AF37] hover:light:text-teal-600 transition-colors inline-block">Contact</Link></li>
                             </ul>
                         </div>
 
                         {/* Features */}
-                        <div>
-                            <h4 className="dark:text-white light:text-gray-900 font-bold mb-4">Features</h4>
+                        <div className="text-center sm:text-left">
+                            <h4 className="dark:text-white light:text-gray-900 font-bold mb-4 text-base">Features</h4>
                             <ul className="space-y-2 text-sm dark:text-gray-400 light:text-gray-600">
-                                <li><Link href="/find-partner" className="hover:dark:text-[#D4AF37] hover:light:text-teal-600 transition-colors">Partner Matching</Link></li>
-                                <li><Link href="/friends" className="hover:dark:text-[#D4AF37] hover:light:text-teal-600 transition-colors">My Friends</Link></li>
-                                <li><Link href="/chat" className="hover:dark:text-[#D4AF37] hover:light:text-teal-600 transition-colors">Safe Environment</Link></li>
-                                <li><Link href="/dashboard" className="hover:dark:text-[#D4AF37] hover:light:text-teal-600 transition-colors">Virtual Community</Link></li>
+                                <li><Link href="/find-partner" className="hover:dark:text-[#D4AF37] hover:light:text-teal-600 transition-colors inline-block">Partner Matching</Link></li>
+                                <li><Link href="/friends" className="hover:dark:text-[#D4AF37] hover:light:text-teal-600 transition-colors inline-block">My Friends</Link></li>
+                                <li><Link href="/chat" className="hover:dark:text-[#D4AF37] hover:light:text-teal-600 transition-colors inline-block">Safe Environment</Link></li>
+                                <li><Link href="/dashboard" className="hover:dark:text-[#D4AF37] hover:light:text-teal-600 transition-colors inline-block">Virtual Community</Link></li>
                             </ul>
                         </div>
 
                         {/* Support */}
-                        <div>
-                            <h4 className="dark:text-white light:text-gray-900 font-bold mb-4">Support</h4>
+                        <div className="text-center sm:text-left">
+                            <h4 className="dark:text-white light:text-gray-900 font-bold mb-4 text-base">Support</h4>
                             <ul className="space-y-2 text-sm dark:text-gray-400 light:text-gray-600">
-                                <li><Link href="/contact" className="hover:dark:text-[#D4AF37] hover:light:text-teal-600 transition-colors">Help Center</Link></li>
-                                <li><Link href="/about" className="hover:dark:text-[#D4AF37] hover:light:text-teal-600 transition-colors">Privacy Policy</Link></li>
-                                <li><Link href="/about" className="hover:dark:text-[#D4AF37] hover:light:text-teal-600 transition-colors">Terms of Services</Link></li>
-                                <li><Link href="/contact" className="hover:dark:text-[#D4AF37] hover:light:text-teal-600 transition-colors">Community Guidelines</Link></li>
-                                <li><Link href="/about" className="hover:dark:text-[#D4AF37] hover:light:text-teal-600 transition-colors">Report an Issue</Link></li>
+                                <li><Link href="/contact" className="hover:dark:text-[#D4AF37] hover:light:text-teal-600 transition-colors inline-block">Help Center</Link></li>
+                                <li><Link href="/about" className="hover:dark:text-[#D4AF37] hover:light:text-teal-600 transition-colors inline-block">Privacy Policy</Link></li>
+                                <li><Link href="/about" className="hover:dark:text-[#D4AF37] hover:light:text-teal-600 transition-colors inline-block">Terms of Services</Link></li>
+                                <li><Link href="/contact" className="hover:dark:text-[#D4AF37] hover:light:text-teal-600 transition-colors inline-block">Community Guidelines</Link></li>
+                                <li><Link href="/about" className="hover:dark:text-[#D4AF37] hover:light:text-teal-600 transition-colors inline-block">Report an Issue</Link></li>
                             </ul>
                         </div>
                     </div>
