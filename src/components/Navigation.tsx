@@ -40,7 +40,9 @@ export function Navigation() {
         backdropFilter: isScrolled ? 'blur(10px)' : 'none'
       }}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
+
+        {/* <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center"> */}
         {/* Logo - Responsive sizing */}
         <Link href="/" className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
           <div className="relative h-10 w-28 xs:h-12 xs:w-32 sm:h-14 sm:w-36 md:h-16 md:w-44">

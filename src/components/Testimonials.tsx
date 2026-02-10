@@ -4,27 +4,27 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Quote } from 'lucide-react';
 const testimonials = [
-{
-  quote:
-  'Finding a partner who matches my pace has been a blessing. We motivate each other every morning after Fajr.',
-  name: 'Yusuf Al-Fayed',
-  location: 'Cairo, Egypt',
-  role: 'Memorized 15 Juz'
-},
-{
-  quote:
-  "The app made it so easy to connect with someone in my timezone. It's transformed my hifz journey completely.",
-  name: 'Sarah Williams',
-  location: 'London, UK',
-  role: 'Beginner'
-},
-{
-  quote:
-  'I was struggling with consistency for years. Having a dedicated partner keeps me accountable and focused.',
-  name: 'Abdullah Rahman',
-  location: 'Kuala Lumpur, Malaysia',
-  role: 'Completed Hifz'
-}];
+  {
+    quote:
+      'Finding a partner who matches my pace has been a blessing. We motivate each other every morning after Fajr.',
+    name: 'Yusuf Al-Fayed',
+    location: 'Cairo, Egypt',
+    role: 'Memorized 15 Juz'
+  },
+  {
+    quote:
+      "The app made it so easy to connect with someone in my timezone. It's transformed my hifz journey completely.",
+    name: 'Sarah Williams',
+    location: 'London, UK',
+    role: 'Beginner'
+  },
+  {
+    quote:
+      'I was struggling with consistency for years. Having a dedicated partner keeps me accountable and focused.',
+    name: 'Abdullah Rahman',
+    location: 'Kuala Lumpur, Malaysia',
+    role: 'Completed Hifz'
+  }];
 
 export function Testimonials() {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -99,11 +99,11 @@ export function Testimonials() {
           {/* Dots */}
           <div className="flex justify-center space-x-2 mt-12">
             {testimonials.map((_, idx) =>
-            <button
-              key={idx}
-              onClick={() => setCurrentIndex(idx)}
-              className={`w-2 h-2 rounded-full transition-all duration-300 ${idx === currentIndex ? 'w-8 bg-[#D4AF37]' : 'bg-gray-600 hover:bg-gray-500'}`}
-              aria-label={`Go to testimonial ${idx + 1}`} />
+              <button
+                key={idx}
+                onClick={() => setCurrentIndex(idx)}
+                className={`w-2 h-2 rounded-full transition-all duration-300 ${idx === currentIndex ? 'w-8 bg-[#D4AF37]' : 'bg-gray-600 hover:bg-gray-500'}`}
+                aria-label={`Go to testimonial ${idx + 1}`} />
 
             )}
           </div>
