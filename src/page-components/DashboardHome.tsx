@@ -1,6 +1,6 @@
 'use client';
 
-import React, { memo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { DashboardLayout } from '../components/layout/DashboardLayout';
 import { useAuth } from '../contexts/AuthContext';
@@ -9,26 +9,45 @@ import { FriendCard } from '../components/FriendCard';
 import { Globe } from '../components/Globe';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
-import { Search, MessageCircle, BookOpen } from 'lucide-react';
+import { Search, MessageCircle, BookOpen, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { api } from '../lib/api';
+
+interface DashboardStats {
+  streak: number;
+  completed_surahs: number;
+  total_surahs: number;
+  online_count: number;
+  recent_matches: Array<{
+    id: number;
+    username: string;
+    email: string;
+    avatar: string | null;
+    level: string | null;
+    primary_language: string | null;
+  }>;
+}
+
 export function DashboardHome() {
   const { user } = useAuth();
   const router = useRouter();
-  const recentMatches = [
-    {
-      id: '1',
-      name: 'Omar Farooq',
-      level: 'Intermediate',
-      language: ['English', 'Arabic'],
-      status: 'online' as const
-    },
-    {
-      id: '2',
-      name: 'Sarah Ahmed',
-      level: 'Advanced',
-      language: ['English', 'Urdu'],
-      status: 'offline' as const
-    }];
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchStats = useCallback(async () => {
+    try {
+      const data = await api.dashboard.stats();
+      setStats(data);
+    } catch (err) {
+      console.error('Failed to load dashboard stats', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
 
   return (
     <DashboardLayout>
@@ -37,26 +56,20 @@ export function DashboardHome() {
         <div className="lg:col-span-2 space-y-8">
           {/* Welcome Section */}
           <motion.div
-            initial={{
-              opacity: 0,
-              y: 20
-            }}
-            animate={{
-              opacity: 1,
-              y: 0
-            }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
             className="flex justify-between items-end">
 
             <div>
-              <h1 className="text-3xl font-serif font-bold text-white mb-2">
+              <h1 className="text-3xl font-serif font-bold text-theme-text mb-2">
                 Assalamu Alaikum, {user?.name}
               </h1>
-              <p className="text-gray-400">
+              <p className="text-theme-text-secondary">
                 Ready to continue your memorization journey?
               </p>
             </div>
             <div className="hidden sm:block text-right">
-              <p className="text-sm text-gray-400">Current Date</p>
+              <p className="text-sm text-theme-text-secondary">Current Date</p>
               <p className="text-[#D4AF37] font-medium font-serif">
                 {new Date().toLocaleDateString('en-US', {
                   weekday: 'long',
@@ -75,8 +88,8 @@ export function DashboardHome() {
               onClick={() => router.push('/find-partner')}>
 
               <div>
-                <h3 className="font-bold text-white mb-1">Find a Partner</h3>
-                <p className="text-sm text-gray-400">
+                <h3 className="font-bold text-theme-text mb-1">Find a Partner</h3>
+                <p className="text-sm text-theme-text-secondary">
                   Match with compatible seekers
                 </p>
               </div>
@@ -91,8 +104,10 @@ export function DashboardHome() {
               onClick={() => router.push('/chat')}>
 
               <div>
-                <h3 className="font-bold text-white mb-1">Messages</h3>
-                <p className="text-sm text-gray-400">2 unread messages</p>
+                <h3 className="font-bold text-theme-text mb-1">Messages</h3>
+                <p className="text-sm text-theme-text-secondary">
+                  {isLoading ? 'Loading...' : `${stats?.recent_matches?.length ?? 0} conversations`}
+                </p>
               </div>
               <div className="w-12 h-12 rounded-full bg-[#D4AF37]/10 flex items-center justify-center group-hover:bg-[#D4AF37] transition-colors">
                 <MessageCircle className="w-6 h-6 text-[#D4AF37] group-hover:text-[#0A1A3A]" />
@@ -103,54 +118,76 @@ export function DashboardHome() {
           {/* Progress Section */}
           <ProgressCard
             totalSurahs={114}
-            completedSurahs={12}
-            currentSurah="Surah Al-Kahf"
-            streakDays={5} />
-
+            completedSurahs={stats?.completed_surahs ?? 0}
+            currentSurah="Tap Hifz Journey to update"
+            streakDays={stats?.streak ?? 0}
+          />
 
           {/* Recent Matches */}
           <div>
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-serif font-bold text-white">
-                Recent Matches
+              <h2 className="text-xl font-serif font-bold text-theme-text">
+                Recent Partners
               </h2>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => router.push('/friends')}>
-
                 View All
               </Button>
             </div>
-            <div className="grid sm:grid-cols-2 gap-4">
-              {recentMatches.map((match) =>
-                <FriendCard
-                  key={match.id}
-                  user={match}
-                  variant="friend"
-                  onAction={(action) => {
-                    if (action === 'chat') router.push('/chat');
-                  }} />
 
-              )}
-            </div>
+            {isLoading ? (
+              <div className="flex items-center justify-center h-24 text-theme-text-secondary">
+                <Loader2 className="w-6 h-6 animate-spin mr-2" />
+                Loading...
+              </div>
+            ) : stats?.recent_matches?.length === 0 ? (
+              <Card className="p-8 text-center text-theme-text-secondary">
+                <p>No partners yet.</p>
+                <Button className="mt-4" onClick={() => router.push('/find-partner')}>Find Your First Partner</Button>
+              </Card>
+            ) : (
+              <div className="grid sm:grid-cols-2 gap-4">
+                {stats?.recent_matches?.map((match) => (
+                  <FriendCard
+                    key={match.id}
+                    user={{
+                      id: String(match.id),
+                      name: match.username,
+                      level: match.level || 'Unknown',
+                      language: match.primary_language ? [match.primary_language] : [],
+                      status: 'online' as const,
+                      avatar: match.avatar || undefined,
+                    }}
+                    variant="friend"
+                    onAction={(action, userId) => {
+                      if (action === 'chat') router.push(`/chat?userId=${userId}`);
+                      if (action === 'profile') router.push(`/u/${userId}`);
+                    }}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
         {/* Right Sidebar */}
         <div className="space-y-8">
           {/* Mini Globe Widget */}
-          <Card className="p-6 bg-[#11224a]/80 backdrop-blur-md overflow-hidden relative min-h-[300px] flex flex-col items-center justify-center">
+          <Card className="p-6 bg-theme-card backdrop-blur-md overflow-hidden relative min-h-[300px] flex flex-col items-center justify-center">
             <div className="absolute inset-0 opacity-50">
               <Globe />
             </div>
-            <div className="relative z-10 text-center mt-auto bg-[#0A1A3A]/80 p-4 rounded-xl backdrop-blur-sm w-full">
-              <p className="text-[#D4AF37] font-bold text-2xl">1,240</p>
-              <p className="text-sm text-gray-300">Seekers online now</p>
+            <div className="relative z-10 text-center mt-auto p-4 rounded-xl backdrop-blur-sm w-full" style={{ backgroundColor: 'var(--theme-bg)', opacity: 0.9 }}>
+              <p className="text-[#D4AF37] font-bold text-2xl">
+                {isLoading ? '...' : (stats?.online_count ?? 0).toLocaleString()}
+              </p>
+              <p className="text-sm text-theme-text-secondary">Seekers online now</p>
             </div>
           </Card>
 
-          {/* Daily Verse/Quote */}
+          {/* Daily Quote */}
           <Card className="p-6 bg-gradient-to-br from-[#11224a] to-[#0A1A3A] border border-[#D4AF37]/20">
             <BookOpen className="w-8 h-8 text-[#D4AF37] mb-4" />
             <blockquote className="text-lg font-serif text-white italic mb-4">
@@ -162,6 +199,6 @@ export function DashboardHome() {
           </Card>
         </div>
       </div>
-    </DashboardLayout>);
-
+    </DashboardLayout>
+  );
 }

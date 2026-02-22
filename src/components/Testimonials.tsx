@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Quote } from 'lucide-react';
+import { Avatar } from './ui/Avatar';
 const testimonials = [
   {
     quote:
@@ -38,7 +39,7 @@ export function Testimonials() {
     <section className="py-24 relative z-10 overflow-hidden">
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-5xl font-serif font-bold text-white mb-4">
+          <h2 className="text-3xl md:text-5xl font-serif font-bold text-theme-text mb-4">
             Voices from Our Community
           </h2>
         </div>
@@ -70,25 +71,25 @@ export function Testimonials() {
                 </div>
               </div>
 
-              <blockquote className="text-2xl md:text-3xl font-serif text-white mb-8 leading-relaxed italic">
+              <blockquote className="text-2xl md:text-3xl font-serif text-theme-text mb-8 leading-relaxed italic">
                 "{testimonials[currentIndex].quote}"
               </blockquote>
 
               <div className="flex flex-col items-center">
-                <div className="w-12 h-12 rounded-full bg-gray-600 mb-3 overflow-hidden border-2 border-[#D4AF37]">
-                  <img
-                    src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${testimonials[currentIndex].name}`}
-                    alt={testimonials[currentIndex].name} />
-
+                <div className="w-12 h-12 rounded-full bg-theme-subtle mb-3 overflow-hidden border-2 border-[#D4AF37]">
+                  <Avatar
+                    fallback={testimonials[currentIndex].name.charAt(0)}
+                    size="md"
+                  />
                 </div>
                 <cite className="not-italic">
-                  <span className="block text-lg font-bold text-white">
+                  <span className="block text-lg font-bold text-theme-text">
                     {testimonials[currentIndex].name}
                   </span>
                   <span className="block text-sm text-[#D4AF37]">
                     {testimonials[currentIndex].location}
                   </span>
-                  <span className="block text-xs text-gray-500 mt-1">
+                  <span className="block text-xs text-theme-muted mt-1">
                     {testimonials[currentIndex].role}
                   </span>
                 </cite>
@@ -102,7 +103,7 @@ export function Testimonials() {
               <button
                 key={idx}
                 onClick={() => setCurrentIndex(idx)}
-                className={`w-2 h-2 rounded-full transition-all duration-300 ${idx === currentIndex ? 'w-8 bg-[#D4AF37]' : 'bg-gray-600 hover:bg-gray-500'}`}
+                className={`w-2 h-2 rounded-full transition-all duration-300 ${idx === currentIndex ? 'w-8 bg-[#D4AF37]' : 'bg-theme-text-secondary opacity-40 hover:opacity-60'}`}
                 aria-label={`Go to testimonial ${idx + 1}`} />
 
             )}

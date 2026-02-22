@@ -1,6 +1,6 @@
 'use client';
 
-import React, { memo } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { Navigation } from '../components/Navigation';
 import { Footer } from '../components/Footer';
@@ -9,35 +9,37 @@ import { IslamicPatterns } from '../components/IslamicPatterns';
 import { Globe } from '../components/Globe';
 import { Card } from '../components/ui/Card';
 import { Heart, Shield, Zap, Users } from 'lucide-react';
+
 export function AboutPage() {
   const features = [
-  {
-    icon: <Heart className="w-8 h-8 text-[#D4AF37]" />,
-    title: 'Spiritual Connection',
-    description:
-    "More than just an app, we're a community dedicated to the preservation of the Holy Quran in our hearts."
-  },
-  {
-    icon: <Shield className="w-8 h-8 text-[#D4AF37]" />,
-    title: 'Safe Environment',
-    description:
-    'Gender-segregated matching and strict moderation ensure a respectful and focused learning space.'
-  },
-  {
-    icon: <Zap className="w-8 h-8 text-[#D4AF37]" />,
-    title: 'Smart Matching',
-    description:
-    'Our algorithm considers your level, goals, timezone, and language to find your ideal memorization partner.'
-  },
-  {
-    icon: <Users className="w-8 h-8 text-[#D4AF37]" />,
-    title: 'Global Community',
-    description:
-    'Connect with seekers from over 50 countries, united by a single noble purpose.'
-  }];
+    {
+      icon: <Heart className="w-8 h-8 text-[#D4AF37]" />,
+      title: 'Spiritual Connection',
+      description:
+        "More than just an app, we're a community dedicated to the preservation of the Holy Quran in our hearts."
+    },
+    {
+      icon: <Shield className="w-8 h-8 text-[#D4AF37]" />,
+      title: 'Safe Environment',
+      description:
+        'Gender-segregated matching and strict moderation ensure a respectful and focused learning space.'
+    },
+    {
+      icon: <Zap className="w-8 h-8 text-[#D4AF37]" />,
+      title: 'Smart Matching',
+      description:
+        'Our algorithm considers your level, goals, timezone, and language to find your ideal memorization partner.'
+    },
+    {
+      icon: <Users className="w-8 h-8 text-[#D4AF37]" />,
+      title: 'Global Community',
+      description:
+        'Connect with seekers from over 50 countries, united by a single noble purpose.'
+    }
+  ];
 
   return (
-    <div className="min-h-screen bg-[#0A1A3A] text-white relative">
+    <div className="min-h-screen bg-theme-bg text-theme-text relative transition-colors duration-300">
       <StarField />
       <IslamicPatterns />
       <Navigation />
@@ -54,8 +56,8 @@ export function AboutPage() {
               opacity: 1,
               y: 0
             }}
-            className="text-5xl md:text-7xl font-serif font-bold mb-8">
-
+            className="text-5xl md:text-7xl font-serif font-bold mb-8"
+          >
             Our <span className="text-[#D4AF37]">Vision</span>
           </motion.h1>
           <motion.p
@@ -70,11 +72,10 @@ export function AboutPage() {
             transition={{
               delay: 0.1
             }}
-            className="text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed">
-
-            To revive the tradition of communal Quran memorization in the
-            digital age, connecting hearts across the globe through the words of
-            Allah.
+            className="text-xl text-theme-text-secondary max-w-3xl mx-auto leading-relaxed"
+          >
+            To revive the tradition of communal Quran memorization in the digital
+            age, connecting hearts across the globe through the words of Allah.
           </motion.p>
         </section>
 
@@ -92,16 +93,16 @@ export function AboutPage() {
               }}
               viewport={{
                 once: true
-              }}>
-
-              <h2 className="text-3xl md:text-4xl font-serif font-bold mb-6">
+              }}
+            >
+              <h2 className="text-3xl md:text-4xl font-serif font-bold mb-6 text-theme-text">
                 Why We Started
               </h2>
-              <div className="space-y-6 text-gray-300 leading-relaxed">
+              <div className="space-y-6 text-theme-text-secondary leading-relaxed">
                 <p>
                   The journey of Hifz (memorization) is noble but challenging.
-                  Many start with enthusiasm but struggle to maintain
-                  consistency without a companion to recite to.
+                  Many start with enthusiasm but struggle to maintain consistency
+                  without a companion to recite to.
                 </p>
                 <p>
                   In traditional settings, students would pair up in circles at
@@ -127,8 +128,8 @@ export function AboutPage() {
               viewport={{
                 once: true
               }}
-              className="relative h-[400px] flex items-center justify-center">
-
+              className="relative h-[400px] flex items-center justify-center"
+            >
               <Globe />
             </motion.div>
           </div>
@@ -137,40 +138,40 @@ export function AboutPage() {
         {/* Features Grid */}
         <section className="container mx-auto px-4 mb-24">
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {features.map((feature, index) =>
-            <motion.div
-              key={index}
-              initial={{
-                opacity: 0,
-                y: 30
-              }}
-              whileInView={{
-                opacity: 1,
-                y: 0
-              }}
-              viewport={{
-                once: true
-              }}
-              transition={{
-                delay: index * 0.1
-              }}>
-
+            {features.map((feature, index) => (
+              <motion.div
+                key={index}
+                initial={{
+                  opacity: 0,
+                  y: 30
+                }}
+                whileInView={{
+                  opacity: 1,
+                  y: 0
+                }}
+                viewport={{
+                  once: true
+                }}
+                transition={{
+                  delay: index * 0.1
+                }}
+              >
                 <Card className="p-8 h-full hover:border-[#D4AF37]/50 transition-colors">
                   <div className="mb-6 p-4 bg-[#D4AF37]/10 rounded-full w-fit">
                     {feature.icon}
                   </div>
-                  <h3 className="text-xl font-bold mb-4 font-serif">
+                  <h3 className="text-xl font-bold mb-4 font-serif text-theme-text">
                     {feature.title}
                   </h3>
-                  <p className="text-gray-400">{feature.description}</p>
+                  <p className="text-theme-text-secondary">{feature.description}</p>
                 </Card>
               </motion.div>
-            )}
+            ))}
           </div>
         </section>
       </main>
 
       <Footer />
-    </div>);
-
+    </div>
+  );
 }

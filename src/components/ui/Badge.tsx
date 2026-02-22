@@ -14,7 +14,7 @@ export function Badge({
     success: 'bg-green-500/10 text-green-400 border border-green-500/20',
     warning: 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20',
     danger: 'bg-red-500/10 text-red-400 border border-red-500/20',
-    outline: 'bg-transparent text-gray-300 border border-white/20'
+    outline: 'bg-transparent text-theme-text-secondary border border-theme-subtle'
   };
   return (
     <span

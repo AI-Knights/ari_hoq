@@ -1,191 +1,372 @@
 'use client';
 
-import React, { useState } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
-import { StarField } from '../components/StarField';
-import { IslamicPatterns } from '../components/IslamicPatterns';
-import { Card } from '../components/ui/Card';
-import { Input } from '../components/ui/Input';
-import { Button } from '../components/ui/Button';
+import React, { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
-import { Mail, Lock, ArrowRight, ArrowLeft } from 'lucide-react';
-import { GoogleIcon } from '../components/GoogleIcon';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
+import { Mail, Lock, ArrowRight, RefreshCw, ShieldCheck, Eye, EyeOff } from 'lucide-react';
+
+type Step = 'login' | 'signup' | 'verify';
 
 export function AuthPage() {
-  const [isLogin, setIsLogin] = useState(true);
+  const { login, register, verifyEmail, resendCode } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const [step, setStep] = useState<Step>('login');
+  const [pendingEmail, setPendingEmail] = useState('');
+
+  // Start on signup tab if ?tab=signup is in the URL
+  useEffect(() => {
+    if (searchParams.get('tab') === 'signup') setStep('signup');
+  }, [searchParams]);
+
+  // Form fields
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const { login, register } = useAuth();
-  const router = useRouter();
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !password) return;
-    setIsSubmitting(true);
-    setError(null);
+  // OTP fields (6 inputs)
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-    try {
-      if (isLogin) {
-        await login(email, password);
-      } else {
-        // Check if passwords match if I had a confirm password field available in state
-        // For now, simplified
-        await register(email, password);
-      }
-      router.push('/dashboard');
-    } catch (err: any) {
-      setError(err.message || 'Authentication failed');
-    } finally {
-      setIsSubmitting(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  const handleOtpChange = (i: number, value: string) => {
+    if (!/^\d*$/.test(value)) return;
+    const next = [...otp];
+    next[i] = value.slice(-1);
+    setOtp(next);
+    if (value && i < 5) otpRefs.current[i + 1]?.focus();
+  };
+
+  const handleOtpKeyDown = (i: number, e: React.KeyboardEvent) => {
+    if (e.key === 'Backspace' && !otp[i] && i > 0) {
+      otpRefs.current[i - 1]?.focus();
     }
   };
 
-  const handleGoogleLogin = async () => {
-    // Placeholder for now
-    alert("Google Login requires backend configuration.");
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setIsLoading(true);
+    try {
+      const user = await login(email, password);
+      if (user.role === 'admin') {
+        router.push('/admin');
+      } else {
+        router.push('/dashboard');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Login failed. Please check your credentials.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const result = await register(email, password);
+      setPendingEmail(result.email);
+      setOtp(['', '', '', '', '', '']);
+      setStep('verify');
+    } catch (err: any) {
+      setError(err.message || 'Registration failed. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const code = otp.join('');
+    if (code.length < 6) { setError('Please enter the 6-digit code.'); return; }
+    setError('');
+    setIsLoading(true);
+    try {
+      const user = await verifyEmail(pendingEmail, code);
+      if (user.role === 'admin') {
+        router.push('/admin');
+      } else {
+        router.push('/dashboard');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Invalid or expired code.');
+      setOtp(['', '', '', '', '', '']);
+      otpRefs.current[0]?.focus();
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    if (resendCooldown > 0) return;
+    setError('');
+    try {
+      await resendCode(pendingEmail);
+      setResendCooldown(60);
+      const interval = setInterval(() => {
+        setResendCooldown(prev => {
+          if (prev <= 1) { clearInterval(interval); return 0; }
+          return prev - 1;
+        });
+      }, 1000);
+    } catch (err: any) {
+      setError(err.message || 'Failed to resend code.');
+    }
   };
 
   return (
-    <div className="min-h-screen bg-[#0A1A3A] text-white relative flex items-center justify-center p-4">
-      <StarField />
-      <IslamicPatterns />
-
-      <motion.div
-        initial={{
-          opacity: 0,
-          scale: 0.95
-        }}
-        animate={{
-          opacity: 1,
-          scale: 1
-        }}
-        className="relative z-10 w-full max-w-md">
-
-        {/* Back to Home Link */}
-        <Link
-          href="/"
-          className="inline-flex items-center text-gray-400 hover:text-white mb-6 transition-colors">
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Home
-        </Link>
-
-        <div className="text-center mb-8">
-          <Link
-            href="/"
-            className="text-3xl font-serif font-bold text-white mb-2 inline-block">
-            Quran<span className="text-[#D4AF37]">Partners</span>
-          </Link>
-          <p className="text-gray-400 mt-2">
-            {isLogin ? 'Welcome back, seeker.' : 'Begin your journey today.'}
-          </p>
+    <div className="min-h-screen flex">
+      {/* Left — Brand Panel */}
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-[#0A1A3A] via-[#11224a] to-[#0A1A3A] flex-col items-center justify-center p-16 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#D4AF37] rounded-full blur-3xl" />
+          <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-[#D4AF37] rounded-full blur-3xl" />
         </div>
-
-        <Card className="p-8 bg-[#11224a]/80 backdrop-blur-md border-[#D4AF37]/20 shadow-2xl">
-          {/* Tabs */}
-          <div className="flex mb-8 border-b border-white/10">
-            <button
-              className={`flex-1 pb-4 text-sm font-medium transition-colors relative ${isLogin ? 'text-[#D4AF37]' : 'text-gray-400 hover:text-white'}`}
-              onClick={() => { setIsLogin(true); setError(null); }}>
-
-              Login
-              {isLogin &&
-                <motion.div
-                  layoutId="activeTab"
-                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#D4AF37]" />
-
-              }
-            </button>
-            <button
-              className={`flex-1 pb-4 text-sm font-medium transition-colors relative ${!isLogin ? 'text-[#D4AF37]' : 'text-gray-400 hover:text-white'}`}
-              onClick={() => { setIsLogin(false); setError(null); }}>
-
-              Sign Up
-              {!isLogin &&
-                <motion.div
-                  layoutId="activeTab"
-                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#D4AF37]" />
-
-              }
-            </button>
+        <div className="relative z-10 text-center">
+          <h1 className="text-5xl font-serif font-bold text-[#D4AF37] mb-4">QuranPartners</h1>
+          <p className="text-xl text-gray-300 mb-8 max-w-md">
+            Connect with memorization partners around the world. Study together, grow together.
+          </p>
+          <div className="text-[#D4AF37] font-serif text-2xl italic">
+            "اقْرَأْ بِاسْمِ رَبِّكَ"
           </div>
+          <p className="text-gray-400 text-sm mt-2">Read in the name of your Lord — Al-'Alaq 96:1</p>
+        </div>
+      </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {error && (
-              <div className="bg-red-500/10 border border-red-500/50 text-red-500 p-3 rounded text-sm text-center">
-                {error}
-              </div>
+      {/* Right — Auth Forms */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-[#0d0d0d]">
+        <div className="w-full max-w-md">
+
+          <AnimatePresence mode="wait">
+            {/* ── Login ── */}
+            {step === 'login' && (
+              <motion.div
+                key="login"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+              >
+                <h2 className="text-3xl font-serif font-bold text-white mb-2">Welcome back</h2>
+                <p className="text-gray-400 mb-8">Sign in to continue your journey.</p>
+
+                {error && (
+                  <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg text-sm">
+                    {error}
+                  </div>
+                )}
+
+                <form onSubmit={handleLogin} className="space-y-5">
+                  <Input
+                    label="Email address"
+                    type="email"
+                    placeholder="you@example.com"
+                    leftIcon={<Mail className="w-4 h-4" />}
+                    value={email}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
+                    required
+                  />
+                  <Input
+                    label="Password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    leftIcon={<Lock className="w-4 h-4" />}
+                    rightIcon={
+                      <button type="button" onClick={() => setShowPassword(p => !p)} className="text-gray-400 hover:text-white transition-colors">
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    }
+                    value={password}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
+                    required
+                  />
+                  <Button type="submit" size="lg" className="w-full" isLoading={isLoading} rightIcon={<ArrowRight className="w-4 h-4" />}>
+                    Sign In
+                  </Button>
+                </form>
+
+                <p className="text-center text-gray-500 text-sm mt-8">
+                  Don't have an account?{' '}
+                  <button onClick={() => { setStep('signup'); setError(''); }} className="text-[#D4AF37] hover:underline font-medium">
+                    Sign Up
+                  </button>
+                </p>
+              </motion.div>
             )}
-            <Input
-              label="Email Address"
-              type="email"
-              placeholder="you@example.com"
-              leftIcon={<Mail className="w-4 h-4" />}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required />
 
+            {/* ── Sign Up ── */}
+            {step === 'signup' && (
+              <motion.div
+                key="signup"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+              >
+                <h2 className="text-3xl font-serif font-bold text-white mb-2">Create account</h2>
+                <p className="text-gray-400 mb-8">Join thousands of Quran memorizers worldwide.</p>
 
-            <Input
-              label="Password"
-              type="password"
-              placeholder="••••••••"
-              leftIcon={<Lock className="w-4 h-4" />}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required />
+                {error && (
+                  <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg text-sm">
+                    {error}
+                  </div>
+                )}
 
+                <form onSubmit={handleSignUp} className="space-y-5">
+                  <Input
+                    label="Email address"
+                    type="email"
+                    placeholder="you@example.com"
+                    leftIcon={<Mail className="w-4 h-4" />}
+                    value={email}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
+                    required
+                  />
+                  <Input
+                    label="Password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Min. 8 characters"
+                    leftIcon={<Lock className="w-4 h-4" />}
+                    rightIcon={
+                      <button type="button" onClick={() => setShowPassword(p => !p)} className="text-gray-400 hover:text-white transition-colors">
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    }
+                    value={password}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
+                    required
+                  />
+                  <Input
+                    label="Confirm Password"
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    placeholder="Repeat your password"
+                    leftIcon={<Lock className="w-4 h-4" />}
+                    rightIcon={
+                      <button type="button" onClick={() => setShowConfirmPassword(p => !p)} className="text-gray-400 hover:text-white transition-colors">
+                        {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    }
+                    value={confirmPassword}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConfirmPassword(e.target.value)}
+                    required
+                  />
+                  <Button type="submit" size="lg" className="w-full" isLoading={isLoading} rightIcon={<ArrowRight className="w-4 h-4" />}>
+                    Create Account
+                  </Button>
+                </form>
 
-            {!isLogin &&
-              <Input
-                label="Confirm Password"
-                type="password"
-                placeholder="••••••••"
-                leftIcon={<Lock className="w-4 h-4" />}
-                // Logic for confirm password mostly skipped for brevity in this step, 
-                // but interface shows it. Ideally specific state for it.
-                required />
+                <p className="text-center text-gray-500 text-sm mt-8">
+                  Already have an account?{' '}
+                  <button onClick={() => { setStep('login'); setError(''); }} className="text-[#D4AF37] hover:underline font-medium">
+                    Sign In
+                  </button>
+                </p>
+              </motion.div>
+            )}
 
-            }
+            {/* ── Verification ── */}
+            {step === 'verify' && (
+              <motion.div
+                key="verify"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+              >
+                <div className="flex justify-center mb-6">
+                  <div className="w-16 h-16 rounded-full bg-[#D4AF37]/10 border border-[#D4AF37]/30 flex items-center justify-center">
+                    <ShieldCheck className="w-8 h-8 text-[#D4AF37]" />
+                  </div>
+                </div>
 
-            <Button
-              type="submit"
-              className="w-full"
-              size="lg"
-              isLoading={isSubmitting}>
+                <h2 className="text-3xl font-serif font-bold text-white text-center mb-2">Check your email</h2>
+                <p className="text-gray-400 text-center mb-2">
+                  We sent a 6-digit code to
+                </p>
+                <p className="text-[#D4AF37] text-center font-medium mb-8">{pendingEmail}</p>
 
-              {isLogin ? 'Sign In' : 'Create Account'}
-              <ArrowRight className="ml-2 w-4 h-4" />
-            </Button>
-          </form>
+                {error && (
+                  <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg text-sm text-center">
+                    {error}
+                  </div>
+                )}
 
-          <div className="mt-8">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t dark:border-white/10 light:border-gray-300"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 dark:bg-[#11224a] light:bg-white dark:text-gray-400 light:text-gray-500">
-                  Or continue with
-                </span>
-              </div>
-            </div>
+                <form onSubmit={handleVerify}>
+                  {/* OTP input boxes */}
+                  <div className="flex gap-3 justify-center mb-8">
+                    {otp.map((digit, i) => (
+                      <input
+                        key={i}
+                        ref={el => { otpRefs.current[i] = el; }}
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={1}
+                        value={digit}
+                        onChange={e => handleOtpChange(i, e.target.value)}
+                        onKeyDown={e => handleOtpKeyDown(i, e)}
+                        onPaste={e => {
+                          const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+                          if (pasted.length === 6) {
+                            const arr = pasted.split('');
+                            setOtp(arr);
+                            otpRefs.current[5]?.focus();
+                          }
+                        }}
+                        className={`
+                          w-12 h-14 text-center text-xl font-bold rounded-xl border-2 bg-[#11224a] text-white
+                          focus:outline-none transition-all
+                          ${digit ? 'border-[#D4AF37] text-[#D4AF37]' : 'border-white/10 focus:border-[#D4AF37]/60'}
+                        `}
+                      />
+                    ))}
+                  </div>
 
-            <div className="mt-6">
-              <button
-                onClick={handleGoogleLogin}
-                disabled={isSubmitting}
-                className="w-full flex items-center justify-center gap-3 px-6 py-3 border dark:border-gray-600 light:border-gray-300 rounded-lg dark:bg-white light:bg-white dark:text-gray-700 light:text-gray-700 hover:dark:bg-gray-50 hover:light:bg-gray-50 transition-colors font-medium shadow-sm">
-                <GoogleIcon className="w-5 h-5" />
-                Continue with Google
-              </button>
-            </div>
-          </div>
-        </Card>
-      </motion.div>
-    </div>);
+                  <Button type="submit" size="lg" className="w-full mb-4" isLoading={isLoading}>
+                    Continue
+                  </Button>
+                </form>
 
+                <div className="text-center space-y-3">
+                  <p className="text-gray-500 text-sm">Didn't receive the code?</p>
+                  <button
+                    onClick={handleResend}
+                    disabled={resendCooldown > 0}
+                    className="flex items-center gap-2 mx-auto text-sm text-[#D4AF37] hover:underline disabled:opacity-50 disabled:no-underline"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend code'}
+                  </button>
+                  <button
+                    onClick={() => { setStep('signup'); setError(''); setOtp(['', '', '', '', '', '']); }}
+                    className="block mx-auto text-sm text-gray-500 hover:text-gray-300"
+                  >
+                    ← Use a different email
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+    </div>
+  );
 }

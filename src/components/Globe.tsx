@@ -121,7 +121,7 @@ export function Globe() {
     };
   }, []);
   return (
-    <div className="relative w-full h-[500px] flex items-center justify-center">
+    <div className="relative w-full h-full min-h-[300px] flex items-center justify-center">
       <div className="absolute inset-0 bg-blue-500/5 blur-3xl rounded-full transform scale-75" />
       <canvas
         ref={canvasRef}

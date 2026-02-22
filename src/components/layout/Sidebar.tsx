@@ -21,6 +21,7 @@ import {
   'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Avatar } from '../ui/Avatar';
+import { ThemeToggle } from '../ThemeToggle';
 
 export function Sidebar() {
   const { user, logout } = useAuth();
@@ -66,24 +67,17 @@ export function Sidebar() {
       label: 'Admin Dashboard'
     }];
 
-  const modLinks = [
-    {
-      to: '/moderator',
-      icon: ShieldAlert,
-      label: 'Moderator Panel'
-    }];
-
   const activeClass =
     'bg-[#D4AF37]/10 text-[#D4AF37] border-r-2 border-[#D4AF37]';
-  const inactiveClass = 'text-gray-400 hover:text-white hover:bg-white/5';
+  const inactiveClass = 'text-theme-text-secondary hover:text-theme-text hover:bg-theme-hover';
   const handleLogout = () => {
     logout();
     router.push('/');
   };
   const SidebarContent = () =>
-    <div className="flex flex-col h-full bg-[#0A1A3A] border-r border-white/5">
+    <div className="flex flex-col h-full border-r border-theme-border transition-colors duration-300" style={{ backgroundColor: 'var(--theme-bg)' }}>
       {/* Logo Area */}
-      <div className="p-6 border-b border-white/5">
+      <div className="p-6 border-b border-theme-border">
         <button
           onClick={() => router.push('/dashboard')}
           className="flex items-center gap-3 w-full group">
@@ -118,7 +112,7 @@ export function Sidebar() {
         {user?.role === 'admin' &&
           <>
             <div className="px-6 py-4">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              <p className="text-xs font-semibold text-theme-muted uppercase tracking-wider">
                 Admin
               </p>
             </div>
@@ -135,43 +129,25 @@ export function Sidebar() {
             )}
           </>
         }
-
-        {(user?.role === 'moderator' || user?.role === 'admin') &&
-          <>
-            <div className="px-6 py-4">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                Moderation
-              </p>
-            </div>
-            {modLinks.map((link) =>
-              <Link
-                key={link.to}
-                href={link.to}
-                onClick={() => setIsMobileOpen(false)}
-                className={`flex items-center px-6 py-3 text-sm font-medium transition-colors ${pathname === link.to ? activeClass : inactiveClass}`}>
-
-                <link.icon className="w-5 h-5 mr-3" />
-                {link.label}
-              </Link>
-            )}
-          </>
-        }
       </nav>
 
-      {/* User Profile & Logout */}
-      <div className="p-4 border-t border-white/5 bg-[#0A1A3A]/50">
-        <div className="flex items-center mb-4 px-2">
+      {/* User Profile, Theme Toggle & Logout */}
+      <div className="p-4 border-t border-theme-border bg-theme-subtle">
+        <div className="flex items-center mb-3 px-2">
           <Avatar
             src={user?.avatar}
             fallback={user?.name?.charAt(0) || 'U'}
             size="sm" />
 
-          <div className="ml-3 overflow-hidden">
-            <p className="text-sm font-medium text-white truncate">
+          <div className="ml-3 overflow-hidden flex-1">
+            <p className="text-sm font-medium text-theme-text truncate">
               {user?.name}
             </p>
-            <p className="text-xs text-gray-400 truncate">{user?.email}</p>
+            <p className="text-xs text-theme-text-secondary truncate">{user?.email}</p>
           </div>
+
+          {/* Theme Toggle next to user info */}
+          <ThemeToggle />
         </div>
         <button
           onClick={handleLogout}
@@ -186,7 +162,7 @@ export function Sidebar() {
   return (
     <>
       {/* Mobile Top Bar */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 h-16 bg-[#0A1A3A] border-b border-white/5 flex items-center justify-between px-4 shadow-sm">
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 h-16 border-b border-theme-border flex items-center justify-between px-4 shadow-sm transition-colors duration-300" style={{ backgroundColor: 'var(--theme-bg)' }}>
         <Link href="/dashboard" className="flex items-center">
           <div className="relative h-10 w-28">
             <Image
@@ -199,14 +175,17 @@ export function Sidebar() {
             />
           </div>
         </Link>
-        <button
-          onClick={() => setIsMobileOpen(!isMobileOpen)}
-          className="p-2 rounded-lg text-white hover:bg-white/5 transition-colors">
-          {isMobileOpen ?
-            <X className="w-6 h-6" /> :
-            <Menu className="w-6 h-6" />
-          }
-        </button>
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <button
+            onClick={() => setIsMobileOpen(!isMobileOpen)}
+            className="p-2 rounded-lg text-theme-text hover:bg-theme-hover transition-colors">
+            {isMobileOpen ?
+              <X className="w-6 h-6" /> :
+              <Menu className="w-6 h-6" />
+            }
+          </button>
+        </div>
       </div>
 
       {/* Desktop Sidebar */}

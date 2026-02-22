@@ -29,7 +29,7 @@ export function Button({
     secondary:
       'bg-transparent border border-[#D4AF37] text-[#D4AF37] hover:bg-[#D4AF37]/10 focus:ring-[#D4AF37]',
     ghost:
-      'bg-transparent text-gray-300 hover:text-white hover:bg-white/5 focus:ring-white/20',
+      'bg-transparent text-theme-text-secondary hover:text-theme-text hover:bg-theme-hover focus:ring-[#D4AF37]/20',
     danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500'
   };
   const sizes = {

@@ -1,11 +1,14 @@
+'use client';
+
 import React from 'react';
 import { motion } from 'framer-motion';
 export function IslamicPatterns() {
   return (
-    <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+    <div className="islamic-patterns fixed inset-0 pointer-events-none z-0 overflow-hidden">
       {/* Large rotating pattern - Top Right */}
       <motion.div
-        className="absolute -top-20 -right-20 w-96 h-96 opacity-[0.03] text-white"
+        className="absolute -top-20 -right-20 w-96 h-96 opacity-[0.03]"
+        style={{ color: 'var(--theme-pattern-color, white)' }}
         animate={{
           rotate: 360
         }}
@@ -63,7 +66,8 @@ export function IslamicPatterns() {
 
       {/* Small floating pattern - Middle Right */}
       <motion.div
-        className="absolute top-1/3 right-10 w-32 h-32 opacity-[0.05] text-white"
+        className="absolute top-1/3 right-10 w-32 h-32 opacity-[0.05]"
+        style={{ color: 'var(--theme-pattern-color, white)' }}
         animate={{
           y: [0, -20, 0],
           rotate: [0, 10, 0]

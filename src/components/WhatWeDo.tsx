@@ -20,12 +20,12 @@ function FeatureCard({ icon, title, description, index }: FeatureCardProps) {
             viewport={{ once: true }}
             transition={{ delay: index * 0.1 }}
         >
-            <Card className="p-6 text-center hover:border-[#D4AF37]/50 transition-all group dark:bg-[#11224a]/80 light:bg-white">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[#D4AF37]/10 dark:bg-[#D4AF37]/10 light:bg-teal-50 flex items-center justify-center group-hover:bg-[#D4AF37]/20 transition-colors">
-                    <div className="dark:text-[#D4AF37] light:text-teal-600">{icon}</div>
+            <Card className="p-6 text-center bg-theme-card border-theme-border hover:border-[#D4AF37]/30 transition-all duration-300 group">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[#D4AF37]/10 flex items-center justify-center group-hover:bg-[#D4AF37]/20 transition-colors">
+                    <div className="text-[#D4AF37]">{icon}</div>
                 </div>
-                <h3 className="text-lg font-bold dark:text-white light:text-gray-900 mb-2 font-serif">{title}</h3>
-                <p className="text-sm dark:text-gray-400 light:text-gray-600 leading-relaxed">{description}</p>
+                <h3 className="text-lg font-bold text-theme-text mb-2 font-serif">{title}</h3>
+                <p className="text-sm text-theme-text-secondary leading-relaxed">{description}</p>
             </Card>
         </motion.div>
     );
@@ -68,35 +68,28 @@ export function WhatWeDo() {
     return (
         <section className="py-24 relative z-10">
             <div className="container mx-auto px-4">
-                {/* Header with decorative cloud */}
-                <div className="text-center mb-16 relative">
+                {/* Header */}
+                <div className="text-center mb-16">
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        whileInView={{ opacity: 1, scale: 1 }}
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
-                        className="relative inline-block"
+                        className="inline-block mb-4"
                     >
-                        {/* Decorative cloud shape */}
-                        <div className="absolute inset-0 -z-10">
-                            <svg viewBox="0 0 400 150" className="w-full h-auto dark:opacity-20 light:opacity-10">
-                                <path
-                                    d="M50 80 Q50 50, 80 50 Q80 30, 110 30 Q140 30, 140 50 Q170 50, 170 80 Q170 50, 200 50 Q230 50, 230 80 Q260 80, 260 100 Q230 100, 230 80 Q200 80, 200 100 Q170 100, 170 80 Q140 80, 140 100 Q110 100, 110 80 Q80 80, 80 100 Q50 100, 50 80"
-                                    fill="currentColor"
-                                    className="dark:text-teal-500 light:text-teal-400"
-                                />
-                            </svg>
-                        </div>
-
-                        <p className="text-sm dark:text-[#D4AF37] light:text-teal-600 font-medium mb-2 tracking-wider">مالك</p>
-                        <h2 className="text-4xl md:text-5xl font-serif font-bold dark:text-white light:text-gray-900 mb-4">
-                            What We do?
-                        </h2>
-                        <p className="text-sm dark:text-gray-400 light:text-gray-600 max-w-2xl mx-auto">
-                            Faith fueled <span className="dark:text-[#D4AF37] light:text-teal-600 font-semibold">CONNECTIONS</span> to help you start or continue
-                            <br />
-                            on a journey towards memorizing the <span className="dark:text-[#D4AF37] light:text-teal-600 font-semibold">HOLY QURAN</span>
-                        </p>
+                        <span className="text-sm text-[#D4AF37] font-medium tracking-wider uppercase">
+                            ★ What We do? ★
+                        </span>
                     </motion.div>
+
+                    <motion.h2
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ delay: 0.1 }}
+                        className="text-3xl md:text-5xl font-serif font-bold text-theme-text mb-4"
+                    >
+                        Faith fueled connections to help you start or continue on a journey towards memorizing the Holy Quran
+                    </motion.h2>
                 </div>
 
                 {/* Feature Grid */}

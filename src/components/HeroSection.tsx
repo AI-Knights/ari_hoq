@@ -5,8 +5,11 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Globe } from './Globe';
 import { ArrowRight } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { Avatar } from './ui/Avatar';
 
 export function HeroSection() {
+  const { user } = useAuth();
   const router = useRouter();
   return (
     <section className="relative min-h-screen flex flex-col justify-center items-center pt-20 overflow-hidden">
@@ -33,7 +36,7 @@ export function HeroSection() {
             </span>
           </div>
 
-          <h1 className="text-5xl md:text-6xl lg:text-7xl font-serif font-bold leading-tight text-white">
+          <h1 className="text-5xl md:text-6xl lg:text-7xl font-serif font-bold leading-tight text-theme-text">
             Connect with <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#D4AF37] to-[#F3E5AB]">
               Quran Partners
@@ -42,7 +45,7 @@ export function HeroSection() {
             Worldwide
           </h1>
 
-          <p className="text-lg md:text-xl text-gray-300 max-w-lg leading-relaxed">
+          <p className="text-lg md:text-xl text-theme-text-secondary max-w-lg leading-relaxed">
             Join a global community of seekers on the path of Quran
             memorization. Find your perfect partner, track progress, and grow
             together.
@@ -50,10 +53,10 @@ export function HeroSection() {
 
           <div className="flex flex-col sm:flex-row gap-4 pt-4">
             <button
-              onClick={() => router.push('/auth')}
+              onClick={() => router.push(user ? '/dashboard' : '/auth?tab=signup')}
               className="group bg-[#D4AF37] hover:bg-[#b5952f] text-[#0A1A3A] px-8 py-4 rounded-full font-bold text-lg transition-all transform hover:scale-105 shadow-[0_0_20px_rgba(212,175,55,0.4)] flex items-center justify-center">
 
-              Start Your Journey
+              {user ? 'Go to Dashboard' : 'Start Your Journey'}
               <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </button>
 
@@ -65,23 +68,25 @@ export function HeroSection() {
                     behavior: 'smooth'
                   });
               }}
-              className="px-8 py-4 rounded-full font-medium text-white border border-white/20 hover:bg-white/10 transition-all backdrop-blur-sm">
+              className="px-8 py-4 rounded-full font-medium text-theme-text border border-theme-subtle hover:bg-theme-hover transition-all backdrop-blur-sm">
 
               Learn More
             </button>
           </div>
 
-          <div className="flex items-center space-x-4 pt-8 text-sm text-gray-400">
+          <div className="flex items-center space-x-4 pt-8 text-sm text-theme-text-secondary">
             <div className="flex -space-x-2">
               {[1, 2, 3, 4].map((i) =>
                 <div
                   key={i}
-                  className="w-8 h-8 rounded-full bg-gray-700 border-2 border-[#0A1A3A] flex items-center justify-center text-xs text-white overflow-hidden">
-
-                  <img
-                    src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${i * 123}`}
-                    alt="User" />
-
+                  className="w-8 h-8 rounded-full bg-theme-subtle border-2 flex items-center justify-center text-xs overflow-hidden"
+                  style={{
+                    borderColor: 'var(--theme-bg)'
+                  }}>
+                  <Avatar
+                    fallback={['A', 'M', 'F', 'S'][i - 1]}
+                    size="sm"
+                  />
                 </div>
               )}
             </div>
@@ -109,7 +114,7 @@ export function HeroSection() {
 
           {/* Floating decorative elements around globe */}
           <motion.div
-            className="absolute top-10 right-10 p-4 bg-[#0A1A3A]/80 backdrop-blur-md border border-[#D4AF37]/30 rounded-lg shadow-xl max-w-[150px]"
+            className="absolute top-10 right-10 p-4 bg-theme-card/80 backdrop-blur-md border border-[#D4AF37]/30 rounded-lg shadow-theme max-w-[150px]"
             initial={{
               y: 20,
               opacity: 0
@@ -125,9 +130,11 @@ export function HeroSection() {
 
             <div className="flex items-center gap-2 mb-1">
               <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-              <span className="text-xs text-gray-300">New Match</span>
+              <span className="text-xs text-theme-text-secondary">
+                New Match
+              </span>
             </div>
-            <p className="text-xs text-white">
+            <p className="text-xs text-theme-text">
               Ahmed matched with Omar in London
             </p>
           </motion.div>
@@ -145,7 +152,7 @@ export function HeroSection() {
           repeat: Infinity
         }}>
 
-        <div className="w-6 h-10 border-2 border-white/20 rounded-full flex justify-center p-1">
+        <div className="w-6 h-10 border-2 border-theme-border rounded-full flex justify-center p-1">
           <div className="w-1 h-2 bg-[#D4AF37] rounded-full"></div>
         </div>
       </motion.div>

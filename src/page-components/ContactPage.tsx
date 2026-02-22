@@ -11,9 +11,10 @@ import { Input } from '../components/ui/Input';
 import { Textarea } from '../components/ui/Textarea';
 import { Button } from '../components/ui/Button';
 import { Mail, MessageSquare, MapPin, Send } from 'lucide-react';
+
 export function ContactPage() {
   return (
-    <div className="min-h-screen bg-[#0A1A3A] text-white relative">
+    <div className="min-h-screen bg-theme-bg text-theme-text relative transition-colors duration-300">
       <StarField />
       <IslamicPatterns />
       <Navigation />
@@ -29,14 +30,14 @@ export function ContactPage() {
               opacity: 1,
               y: 0
             }}
-            className="text-center mb-16">
-
+            className="text-center mb-16"
+          >
             <h1 className="text-4xl md:text-6xl font-serif font-bold mb-6">
               Get in <span className="text-[#D4AF37]">Touch</span>
             </h1>
-            <p className="text-xl text-gray-300 max-w-2xl mx-auto">
-              Have questions or feedback? We'd love to hear from you. Our team
-              is here to support your journey.
+            <p className="text-xl text-theme-text-secondary max-w-2xl mx-auto">
+              Have questions or feedback? We'd love to hear from you. Our team is
+              here to support your journey.
             </p>
           </motion.div>
 
@@ -54,10 +55,10 @@ export function ContactPage() {
               transition={{
                 delay: 0.2
               }}
-              className="md:col-span-1 space-y-6">
-
-              <Card className="p-8 h-full bg-[#11224a]/80 backdrop-blur-md">
-                <h3 className="text-2xl font-serif font-bold mb-8">
+              className="md:col-span-1 space-y-6"
+            >
+              <Card className="p-8 h-full bg-theme-card backdrop-blur-md">
+                <h3 className="text-2xl font-serif font-bold mb-8 text-theme-text">
                   Contact Info
                 </h3>
 
@@ -65,27 +66,37 @@ export function ContactPage() {
                   <div className="flex items-start">
                     <Mail className="w-6 h-6 text-[#D4AF37] mt-1 mr-4" />
                     <div>
-                      <p className="font-medium text-white">Email Us</p>
-                      <p className="text-gray-400">salam@quranpartners.com</p>
-                      <p className="text-gray-400">support@quranpartners.com</p>
+                      <p className="font-medium text-theme-text">Email Us</p>
+                      <p className="text-theme-text-secondary">
+                        salam@quranpartners.com
+                      </p>
+                      <p className="text-theme-text-secondary">
+                        support@quranpartners.com
+                      </p>
                     </div>
                   </div>
 
                   <div className="flex items-start">
                     <MessageSquare className="w-6 h-6 text-[#D4AF37] mt-1 mr-4" />
                     <div>
-                      <p className="font-medium text-white">Live Chat</p>
-                      <p className="text-gray-400">Available Mon-Fri</p>
-                      <p className="text-gray-400">9am - 5pm EST</p>
+                      <p className="font-medium text-theme-text">Live Chat</p>
+                      <p className="text-theme-text-secondary">
+                        Available Mon-Fri
+                      </p>
+                      <p className="text-theme-text-secondary">9am - 5pm EST</p>
                     </div>
                   </div>
 
                   <div className="flex items-start">
                     <MapPin className="w-6 h-6 text-[#D4AF37] mt-1 mr-4" />
                     <div>
-                      <p className="font-medium text-white">Location</p>
-                      <p className="text-gray-400">Global Remote Team</p>
-                      <p className="text-gray-400">Based in London, UK</p>
+                      <p className="font-medium text-theme-text">Location</p>
+                      <p className="text-theme-text-secondary">
+                        Global Remote Team
+                      </p>
+                      <p className="text-theme-text-secondary">
+                        Based in London, UK
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -105,13 +116,13 @@ export function ContactPage() {
               transition={{
                 delay: 0.3
               }}
-              className="md:col-span-2">
-
-              <Card className="p-8 md:p-10 bg-[#11224a]/80 backdrop-blur-md">
+              className="md:col-span-2"
+            >
+              <Card className="p-8 md:p-10 bg-theme-card backdrop-blur-md">
                 <form
                   className="space-y-6"
-                  onSubmit={(e) => e.preventDefault()}>
-
+                  onSubmit={(e) => e.preventDefault()}
+                >
                   <div className="grid md:grid-cols-2 gap-6">
                     <Input label="First Name" placeholder="Ahmed" />
                     <Input label="Last Name" placeholder="Ali" />
@@ -120,14 +131,14 @@ export function ContactPage() {
                   <Input
                     label="Email Address"
                     type="email"
-                    placeholder="ahmed@example.com" />
-
+                    placeholder="ahmed@example.com"
+                  />
 
                   <div className="space-y-1.5">
-                    <label className="block text-sm font-medium text-gray-300">
+                    <label className="block text-sm font-medium text-theme-text-secondary">
                       Subject
                     </label>
-                    <select className="w-full bg-[#0A1A3A]/50 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37] outline-none">
+                    <select className="w-full bg-theme-input border border-theme-input-border rounded-lg px-4 py-2.5 text-theme-text focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37] outline-none">
                       <option>General Inquiry</option>
                       <option>Technical Support</option>
                       <option>Report an Issue</option>
@@ -138,15 +149,15 @@ export function ContactPage() {
                   <Textarea
                     label="Message"
                     placeholder="How can we help you?"
-                    rows={6} />
-
+                    rows={6}
+                  />
 
                   <Button
                     type="submit"
                     size="lg"
                     className="w-full md:w-auto"
-                    rightIcon={<Send className="w-4 h-4" />}>
-
+                    rightIcon={<Send className="w-4 h-4" />}
+                  >
                     Send Message
                   </Button>
                 </form>
@@ -157,6 +168,6 @@ export function ContactPage() {
       </main>
 
       <Footer />
-    </div>);
-
+    </div>
+  );
 }

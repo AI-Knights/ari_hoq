@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { DashboardLayout } from '../components/layout/DashboardLayout';
 import { Card } from '../components/ui/Card';
-import { CheckCircle2, Circle, TrendingUp, Award, Target } from 'lucide-react';
+import { CheckCircle2, Circle, TrendingUp, Award, Target, Loader2 } from 'lucide-react';
+import { api } from '../lib/api';
 
-// All 114 Surahs with their names and number of verses
+// All 114 Surahs
 const SURAHS = [
     { number: 1, name: "Al-Fatihah", nameArabic: "الفاتحة", verses: 7, juz: 1 },
     { number: 2, name: "Al-Baqarah", nameArabic: "البقرة", verses: 286, juz: 1 },
@@ -125,18 +126,64 @@ const SURAHS = [
 ];
 
 export function HifzJourneyPage() {
-    const [completedSurahs, setCompletedSurahs] = useState<Set<number>>(new Set([1, 2, 3])); // Demo data
+    const [completedSurahs, setCompletedSurahs] = useState<Set<number>>(new Set());
+    const [loadingToggle, setLoadingToggle] = useState<number | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
 
-    const toggleSurah = (surahNumber: number) => {
+    const loadProgress = useCallback(async () => {
+        try {
+            const data = await api.hifz.list();
+            const records = Array.isArray(data) ? data : data.results ?? [];
+            const masteredNumbers = new Set<number>(
+                records
+                    .filter((r: any) => r.status === 'mastered')
+                    .map((r: any) => r.surah_number)
+            );
+            setCompletedSurahs(masteredNumbers);
+        } catch (err) {
+            console.error('Failed to load hifz progress', err);
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        loadProgress();
+    }, [loadProgress]);
+
+    const toggleSurah = async (surahNumber: number) => {
+        if (loadingToggle === surahNumber) return;
+        setLoadingToggle(surahNumber);
+
+        // Optimistic update
         setCompletedSurahs(prev => {
-            const newSet = new Set(prev);
-            if (newSet.has(surahNumber)) {
-                newSet.delete(surahNumber);
-            } else {
-                newSet.add(surahNumber);
-            }
-            return newSet;
+            const next = new Set(prev);
+            if (next.has(surahNumber)) next.delete(surahNumber);
+            else next.add(surahNumber);
+            return next;
         });
+
+        try {
+            const result = await api.hifz.toggle(surahNumber);
+            // Sync with server truth
+            setCompletedSurahs(prev => {
+                const next = new Set(prev);
+                if (result.status === 'mastered') next.add(surahNumber);
+                else next.delete(surahNumber);
+                return next;
+            });
+        } catch (err) {
+            console.error('Failed to toggle surah', err);
+            // Revert optimistic update
+            setCompletedSurahs(prev => {
+                const next = new Set(prev);
+                if (next.has(surahNumber)) next.delete(surahNumber);
+                else next.add(surahNumber);
+                return next;
+            });
+        } finally {
+            setLoadingToggle(null);
+        }
     };
 
     const completionPercentage = Math.round((completedSurahs.size / 114) * 100);
@@ -146,144 +193,125 @@ export function HifzJourneyPage() {
     return (
         <DashboardLayout>
             <div className="space-y-8">
-                {/* Header */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                >
-                    <h1 className="text-3xl md:text-4xl font-serif font-bold dark:text-white light:text-gray-900 mb-2">
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+                    <h1 className="text-3xl md:text-4xl font-serif font-bold text-theme-text mb-2">
                         Hifz Journey
                     </h1>
-                    <p className="dark:text-gray-400 light:text-gray-600">
-                        Track your complete Quran memorization progress
+                    <p className="text-theme-text-secondary">
+                        Track your complete Quran memorization progress — changes are saved automatically.
                     </p>
                 </motion.div>
 
-                {/* Stats Cards */}
-                <div className="grid md:grid-cols-4 gap-4">
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.1 }}
-                    >
-                        <Card className="p-6 dark:bg-gradient-to-br dark:from-[#D4AF37]/20 dark:to-[#D4AF37]/5 light:bg-gradient-to-br light:from-teal-50 light:to-teal-100 border-2 dark:border-[#D4AF37]/30 light:border-teal-300">
-                            <div className="flex items-center justify-between mb-2">
-                                <TrendingUp className="w-8 h-8 dark:text-[#D4AF37] light:text-teal-600" />
-                                <span className="text-2xl font-bold dark:text-[#D4AF37] light:text-teal-700">{completionPercentage}%</span>
-                            </div>
-                            <p className="text-sm dark:text-gray-300 light:text-gray-700 font-medium">Overall Progress</p>
-                        </Card>
-                    </motion.div>
+                {isLoading ? (
+                    <div className="flex items-center justify-center h-40 text-theme-text-secondary">
+                        <Loader2 className="w-8 h-8 animate-spin mr-3" /> Loading your progress...
+                    </div>
+                ) : (
+                    <>
+                        {/* Stats Cards */}
+                        <div className="grid md:grid-cols-4 gap-4">
+                            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+                                <Card className="p-6 bg-gradient-to-br from-[#D4AF37]/20 to-[#D4AF37]/5 border-2 border-[#D4AF37]/30">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <TrendingUp className="w-8 h-8 text-[#D4AF37]" />
+                                        <span className="text-2xl font-bold text-[#D4AF37]">{completionPercentage}%</span>
+                                    </div>
+                                    <p className="text-sm text-theme-text-secondary font-medium">Overall Progress</p>
+                                </Card>
+                            </motion.div>
 
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.2 }}
-                    >
-                        <Card className="p-6">
-                            <div className="flex items-center justify-between mb-2">
-                                <CheckCircle2 className="w-8 h-8 dark:text-green-400 light:text-green-600" />
-                                <span className="text-2xl font-bold dark:text-white light:text-gray-900">{completedSurahs.size}/114</span>
-                            </div>
-                            <p className="text-sm dark:text-gray-400 light:text-gray-600">Surahs Completed</p>
-                        </Card>
-                    </motion.div>
+                            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+                                <Card className="p-6">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <CheckCircle2 className="w-8 h-8 text-green-500" />
+                                        <span className="text-2xl font-bold text-theme-text">{completedSurahs.size}/114</span>
+                                    </div>
+                                    <p className="text-sm text-theme-text-secondary">Surahs Completed</p>
+                                </Card>
+                            </motion.div>
 
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.3 }}
-                    >
-                        <Card className="p-6">
-                            <div className="flex items-center justify-between mb-2">
-                                <Target className="w-8 h-8 dark:text-blue-400 light:text-blue-600" />
-                                <span className="text-2xl font-bold dark:text-white light:text-gray-900">{completedVerses}/{totalVerses}</span>
-                            </div>
-                            <p className="text-sm dark:text-gray-400 light:text-gray-600">Verses Memorized</p>
-                        </Card>
-                    </motion.div>
+                            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+                                <Card className="p-6">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <Target className="w-8 h-8 text-blue-500" />
+                                        <span className="text-2xl font-bold text-theme-text">{completedVerses}/{totalVerses}</span>
+                                    </div>
+                                    <p className="text-sm text-theme-text-secondary">Verses Memorized</p>
+                                </Card>
+                            </motion.div>
 
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.4 }}
-                    >
-                        <Card className="p-6">
-                            <div className="flex items-center justify-between mb-2">
-                                <Award className="w-8 h-8 dark:text-purple-400 light:text-purple-600" />
-                                <span className="text-2xl font-bold dark:text-white light:text-gray-900">{114 - completedSurahs.size}</span>
-                            </div>
-                            <p className="text-sm dark:text-gray-400 light:text-gray-600">Remaining Surahs</p>
-                        </Card>
-                    </motion.div>
-                </div>
-
-                {/* Surahs Roadmap */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.5 }}
-                >
-                    <Card className="p-6">
-                        <div className="flex items-center justify-between mb-6">
-                            <h2 className="text-2xl font-serif font-bold dark:text-white light:text-gray-900">
-                                Quran Roadmap
-                            </h2>
-                            <p className="text-sm dark:text-gray-400 light:text-gray-600">
-                                Click on a Surah to mark as complete
-                            </p>
+                            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+                                <Card className="p-6">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <Award className="w-8 h-8 text-purple-500" />
+                                        <span className="text-2xl font-bold text-theme-text">{114 - completedSurahs.size}</span>
+                                    </div>
+                                    <p className="text-sm text-theme-text-secondary">Remaining Surahs</p>
+                                </Card>
+                            </motion.div>
                         </div>
 
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                            {SURAHS.map((surah, index) => {
-                                const isCompleted = completedSurahs.has(surah.number);
-                                return (
-                                    <motion.button
-                                        key={surah.number}
-                                        initial={{ opacity: 0, scale: 0.9 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        transition={{ delay: index * 0.01 }}
-                                        onClick={() => toggleSurah(surah.number)}
-                                        className={`
-                      relative p-4 rounded-lg border-2 transition-all duration-300 text-left group
-                      ${isCompleted
-                                                ? 'dark:bg-gradient-to-br dark:from-[#D4AF37]/20 dark:to-[#D4AF37]/10 dark:border-[#D4AF37] light:bg-gradient-to-br light:from-teal-100 light:to-teal-50 light:border-teal-500'
-                                                : 'dark:bg-[#11224a]/50 dark:border-white/10 light:bg-white light:border-gray-200 hover:dark:border-[#D4AF37]/50 hover:light:border-teal-300'
-                                            }
-                    `}
-                                    >
-                                        {/* Checkmark Icon */}
-                                        <div className="absolute top-2 right-2">
-                                            {isCompleted ? (
-                                                <CheckCircle2 className="w-5 h-5 dark:text-[#D4AF37] light:text-teal-600" />
-                                            ) : (
-                                                <Circle className="w-5 h-5 dark:text-gray-600 light:text-gray-300 group-hover:dark:text-[#D4AF37]/50 group-hover:light:text-teal-400" />
-                                            )}
-                                        </div>
+                        {/* Surahs Roadmap */}
+                        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
+                            <Card className="p-6">
+                                <div className="flex items-center justify-between mb-6">
+                                    <h2 className="text-2xl font-serif font-bold text-theme-text">Quran Roadmap</h2>
+                                    <p className="text-sm text-theme-text-secondary">Click on a Surah to mark as complete</p>
+                                </div>
 
-                                        {/* Surah Number */}
-                                        <div className={`text-3xl font-bold mb-2 ${isCompleted ? 'dark:text-[#D4AF37] light:text-teal-600' : 'dark:text-gray-500 light:text-gray-400'}`}>
-                                            {surah.number}
-                                        </div>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                                    {SURAHS.map((surah, index) => {
+                                        const isCompleted = completedSurahs.has(surah.number);
+                                        const isToggling = loadingToggle === surah.number;
+                                        return (
+                                            <motion.button
+                                                key={surah.number}
+                                                initial={{ opacity: 0, scale: 0.9 }}
+                                                animate={{ opacity: 1, scale: 1 }}
+                                                transition={{ delay: index * 0.005 }}
+                                                onClick={() => toggleSurah(surah.number)}
+                                                disabled={isToggling}
+                                                className={`
+                          relative p-4 rounded-lg border-2 transition-all duration-300 text-left group
+                          ${isCompleted
+                                                        ? 'bg-gradient-to-br from-[#D4AF37]/20 to-[#D4AF37]/10 border-[#D4AF37]'
+                                                        : 'bg-theme-card border-theme-border hover:border-[#D4AF37]/50'
+                                                    }
+                          ${isToggling ? 'opacity-60' : ''}
+                        `}
+                                            >
+                                                <div className="absolute top-2 right-2">
+                                                    {isToggling ? (
+                                                        <Loader2 className="w-5 h-5 text-[#D4AF37] animate-spin" />
+                                                    ) : isCompleted ? (
+                                                        <CheckCircle2 className="w-5 h-5 text-[#D4AF37]" />
+                                                    ) : (
+                                                        <Circle className="w-5 h-5 text-theme-muted group-hover:text-[#D4AF37]/50" />
+                                                    )}
+                                                </div>
 
-                                        {/* Surah Name */}
-                                        <div className="space-y-1">
-                                            <p className={`text-sm font-semibold ${isCompleted ? 'dark:text-white light:text-gray-900' : 'dark:text-gray-300 light:text-gray-700'}`}>
-                                                {surah.name}
-                                            </p>
-                                            <p className={`text-xs font-arabic ${isCompleted ? 'dark:text-[#D4AF37]/80 light:text-teal-600' : 'dark:text-gray-500 light:text-gray-500'}`} dir="rtl">
-                                                {surah.nameArabic}
-                                            </p>
-                                            <p className={`text-xs ${isCompleted ? 'dark:text-gray-400 light:text-gray-600' : 'dark:text-gray-600 light:text-gray-500'}`}>
-                                                {surah.verses} verses
-                                            </p>
-                                        </div>
-                                    </motion.button>
-                                );
-                            })}
-                        </div>
-                    </Card>
-                </motion.div>
+                                                <div className={`text-3xl font-bold mb-2 ${isCompleted ? 'text-[#D4AF37]' : 'text-theme-muted'}`}>
+                                                    {surah.number}
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <p className={`text-sm font-semibold ${isCompleted ? 'text-theme-text' : 'text-theme-text-secondary'}`}>
+                                                        {surah.name}
+                                                    </p>
+                                                    <p className={`text-xs font-arabic ${isCompleted ? 'text-[#D4AF37]/80' : 'text-theme-muted'}`} dir="rtl">
+                                                        {surah.nameArabic}
+                                                    </p>
+                                                    <p className={`text-xs ${isCompleted ? 'text-theme-text-secondary' : 'text-theme-muted'}`}>
+                                                        {surah.verses} verses
+                                                    </p>
+                                                </div>
+                                            </motion.button>
+                                        );
+                                    })}
+                                </div>
+                            </Card>
+                        </motion.div>
+                    </>
+                )}
             </div>
         </DashboardLayout>
     );

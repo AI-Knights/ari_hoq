@@ -7,40 +7,59 @@
 :root {
   --color-midnight: #0A1A3A;
   --color-indigo: #1a1a4a;
-  --color-gold: #daa756;
-  --color-taupe: #b4aba6;
+  --color-gold: #D4AF37;
+  /* Dark theme (default) */
+  --theme-bg: #0A1A3A;
+  --theme-bg-secondary: #1a1a4a;
+  --theme-bg-elevated: #11224a;
+  --theme-bg-subtle: rgba(255, 255, 255, 0.05);
+  --theme-bg-hover: rgba(255, 255, 255, 0.1);
+  --theme-text: #ffffff;
+  --theme-text-secondary: #9ca3af;
+  --theme-text-muted: #6b7280;
+  --theme-card: #11224a;
+  --theme-border: rgba(255, 255, 255, 0.05);
+  --theme-border-subtle: rgba(255, 255, 255, 0.1);
+  --theme-shadow: 0 0 0 transparent;
+  --nav-bg: rgba(10, 26, 58, 0.9);
+  --theme-overlay: rgba(10, 26, 58, 0.65);
+  --theme-input-bg: rgba(10, 26, 58, 0.5);
+  --theme-input-border: rgba(255, 255, 255, 0.1);
+  --theme-input-text: #ffffff;
+  --theme-input-placeholder: #6b7280;
+  --theme-pattern-color: white;
 }
 
-/* Dark theme (default) */
-.dark {
-  --bg-primary: #0A1A3A;
-  --bg-secondary: #1a1a4a;
-  --text-primary: #f3f4f6;
-  --text-secondary: #9ca3af;
-}
-
-/* Light theme */
-.light {
-  --bg-primary: #f9fafb;
-  --bg-secondary: #ffffff;
-  --text-primary: #111827;
-  --text-secondary: #6b7280;
+html.light {
+  /* Light theme — warm cream, premium feel */
+  --theme-bg: #f5f3ee;
+  --theme-bg-secondary: #ebe8e1;
+  --theme-bg-elevated: #ffffff;
+  --theme-bg-subtle: rgba(0, 0, 0, 0.03);
+  --theme-bg-hover: rgba(0, 0, 0, 0.05);
+  --theme-text: #1a1a2e;
+  --theme-text-secondary: #64748b;
+  --theme-text-muted: #94a3b8;
+  --theme-card: #ffffff;
+  --theme-border: rgba(0, 0, 0, 0.08);
+  --theme-border-subtle: rgba(0, 0, 0, 0.12);
+  --theme-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --nav-bg: rgba(245, 243, 238, 0.9);
+  --theme-overlay: rgba(245, 243, 238, 0.75);
+  --theme-input-bg: #f0ede6;
+  --theme-input-border: rgba(0, 0, 0, 0.12);
+  --theme-input-text: #1a1a2e;
+  --theme-input-placeholder: #94a3b8;
+  --theme-pattern-color: #D4AF37;
 }
 
 body {
   margin: 0;
   font-family: var(--font-montserrat), 'Inter', sans-serif;
+  background: linear-gradient(to bottom, var(--theme-bg), var(--theme-bg-secondary));
+  color: var(--theme-text);
   overflow-x: hidden;
-}
-
-.dark body {
-  background: linear-gradient(to bottom, #0A1A3A, #1a1a4a);
-  color: #f3f4f6;
-}
-
-.light body {
-  background: linear-gradient(to bottom, #f9fafb, #ffffff);
-  color: #111827;
+  transition: background 0.3s ease, color 0.3s ease;
 }
 
 h1,
@@ -52,55 +71,111 @@ h6 {
   font-family: var(--font-poppins), 'Playfair Display', serif;
 }
 
-/* Custom Scrollbar - Dark Mode */
-.dark ::-webkit-scrollbar {
+/* Custom Scrollbar */
+::-webkit-scrollbar {
   width: 8px;
 }
 
-.dark ::-webkit-scrollbar-track {
-  background: #0A1A3A;
+::-webkit-scrollbar-track {
+  background: var(--theme-bg);
 }
 
-.dark ::-webkit-scrollbar-thumb {
-  background: #1a1a4a;
+::-webkit-scrollbar-thumb {
+  background: var(--theme-bg-secondary);
   border-radius: 4px;
-  border: 1px solid #334155;
+  border: 1px solid var(--theme-border);
 }
 
-.dark ::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+::-webkit-scrollbar-thumb:hover {
+  background: var(--theme-text-secondary);
 }
 
-/* Custom Scrollbar - Light Mode */
-.light ::-webkit-scrollbar {
-  width: 8px;
+/* Theme-aware utility classes */
+.bg-theme-bg {
+  background-color: var(--theme-bg);
 }
 
-.light ::-webkit-scrollbar-track {
-  background: #f3f4f6;
+.bg-theme-secondary {
+  background-color: var(--theme-bg-secondary);
 }
 
-.light ::-webkit-scrollbar-thumb {
-  background: #d1d5db;
-  border-radius: 4px;
-  border: 1px solid #e5e7eb;
+.bg-theme-elevated {
+  background-color: var(--theme-bg-elevated);
 }
 
-.light ::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
+.bg-theme-card {
+  background-color: var(--theme-card);
+}
+
+.bg-theme-subtle {
+  background-color: var(--theme-bg-subtle);
+}
+
+.bg-theme-hover {
+  background-color: var(--theme-bg-hover);
+}
+
+.bg-theme-input {
+  background-color: var(--theme-input-bg);
+}
+
+.text-theme-text {
+  color: var(--theme-text);
+}
+
+.text-theme-text-secondary {
+  color: var(--theme-text-secondary);
+}
+
+.text-theme-muted {
+  color: var(--theme-text-muted);
+}
+
+.text-theme-input {
+  color: var(--theme-input-text);
+}
+
+.border-theme-border {
+  border-color: var(--theme-border);
+}
+
+.border-theme-subtle {
+  border-color: var(--theme-border-subtle);
+}
+
+.border-theme-input {
+  border-color: var(--theme-input-border);
+}
+
+.shadow-theme {
+  box-shadow: var(--theme-shadow);
+}
+
+/* Light mode specific overrides */
+html.light .star-field {
+  opacity: 0.45 !important;
+  transition: opacity 0.5s ease;
+}
+
+html.light .islamic-patterns {
+  opacity: 0.6;
+}
+
+html.light .islamic-patterns svg {
+  color: #D4AF37 !important;
 }
 
 /* Utilities */
 .text-gold {
-  color: #daa756;
+  color: #D4AF37;
 }
 
 .bg-gold {
-  background-color: #daa756;
+  background-color: #D4AF37;
 }
 
 .border-gold {
-  border-color: #daa756;
+  border-color: #D4AF37;
 }
 
 .gold-glow {
@@ -109,4 +184,22 @@ h6 {
 
 .gold-glow-text {
   text-shadow: 0 0 10px rgba(218, 167, 86, 0.5);
+}
+
+/* Custom scrollbar class */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--theme-text-secondary);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--theme-text);
 }

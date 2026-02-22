@@ -3,6 +3,7 @@ import { Montserrat, Poppins } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "../src/contexts/AuthContext";
 import { ThemeProvider } from "../src/contexts/ThemeContext";
+import { PresenceProvider } from "../src/contexts/PresenceContext";
 
 const montserrat = Montserrat({
   variable: "--font-montserrat",
@@ -54,7 +55,9 @@ export default function RootLayout({
       >
         <ThemeProvider>
           <AuthProvider>
-            {children}
+            <PresenceProvider>
+              {children}
+            </PresenceProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

@@ -27,7 +27,7 @@ export function SearchableSelect({ options, value, onChange, placeholder, label 
 
     return (
         <div className="relative">
-            <label className="block text-sm font-medium dark:text-gray-300 light:text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-theme-text-secondary mb-2">
                 {label}
             </label>
 
@@ -35,9 +35,9 @@ export function SearchableSelect({ options, value, onChange, placeholder, label 
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className="w-full px-4 py-3 dark:bg-[#11224a] light:bg-white border dark:border-white/10 light:border-gray-300 rounded-lg dark:text-white light:text-gray-900 text-left flex items-center justify-between hover:dark:border-[#D4AF37]/50 hover:light:border-teal-500 transition-colors"
+                className="w-full px-4 py-3 bg-theme-card border border-theme-subtle rounded-lg text-theme-text text-left flex items-center justify-between hover:border-[#D4AF37]/50 transition-colors"
             >
-                <span className={value ? 'dark:text-white light:text-gray-900' : 'dark:text-gray-500 light:text-gray-400'}>
+                <span className={value ? 'text-theme-text' : 'text-theme-muted'}>
                     {value || placeholder}
                 </span>
                 <svg className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -47,54 +47,56 @@ export function SearchableSelect({ options, value, onChange, placeholder, label 
 
             {/* Dropdown */}
             {isOpen && (
-                <>
-                    {/* Backdrop */}
-                    <div
-                        className="fixed inset-0 z-10"
-                        onClick={() => setIsOpen(false)}
-                    />
-
-                    {/* Dropdown Content */}
-                    <div className="absolute z-20 w-full mt-2 dark:bg-[#11224a] light:bg-white border dark:border-white/10 light:border-gray-300 rounded-lg shadow-lg max-h-80 overflow-hidden">
-                        {/* Search Input */}
-                        <div className="p-3 border-b dark:border-white/10 light:border-gray-200 sticky top-0 dark:bg-[#11224a] light:bg-white">
-                            <div className="relative">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 dark:text-gray-500 light:text-gray-400" />
-                                <input
-                                    type="text"
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    placeholder="Search..."
-                                    className="w-full pl-10 pr-4 py-2 dark:bg-[#0A1A3A] light:bg-gray-50 border dark:border-white/10 light:border-gray-200 rounded-lg dark:text-white light:text-gray-900 placeholder:dark:text-gray-500 placeholder:light:text-gray-400 focus:outline-none focus:dark:border-[#D4AF37] focus:light:border-teal-500"
-                                    autoFocus
-                                />
-                            </div>
-                        </div>
-
-                        {/* Options List */}
-                        <div className="overflow-y-auto max-h-60">
-                            {filteredOptions.length > 0 ? (
-                                filteredOptions.map((option) => (
-                                    <button
-                                        key={option}
-                                        type="button"
-                                        onClick={() => handleSelect(option)}
-                                        className={`w-full px-4 py-2.5 text-left hover:dark:bg-[#D4AF37]/10 hover:light:bg-teal-50 transition-colors ${value === option
-                                                ? 'dark:bg-[#D4AF37]/20 dark:text-[#D4AF37] light:bg-teal-100 light:text-teal-700'
-                                                : 'dark:text-gray-300 light:text-gray-700'
-                                            }`}
-                                    >
-                                        {option}
-                                    </button>
-                                ))
-                            ) : (
-                                <div className="px-4 py-8 text-center dark:text-gray-500 light:text-gray-400">
-                                    No results found
-                                </div>
-                            )}
+                <div className="absolute z-[100] w-full mt-2 bg-theme-card border border-theme-subtle rounded-lg shadow-2xl max-h-80 shadow-black/50 overflow-hidden flex flex-col">
+                    {/* Search Input */}
+                    <div className="p-3 border-b border-theme-border flex-shrink-0 bg-theme-card">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-theme-muted" />
+                            <input
+                                type="text"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                placeholder="Search..."
+                                className="w-full pl-10 pr-4 py-2 rounded-lg text-theme-input focus:outline-none focus:border-[#D4AF37]"
+                                style={{
+                                    backgroundColor: 'var(--theme-input-bg)',
+                                    borderColor: 'var(--theme-input-border)',
+                                    color: 'var(--theme-input-text)',
+                                    border: '1px solid var(--theme-input-border)'
+                                }}
+                                autoFocus
+                            />
                         </div>
                     </div>
-                </>
+
+                    {/* Options List */}
+                    <div className="overflow-y-auto overflow-x-hidden flex-1 max-h-56">
+                        {filteredOptions.length > 0 ? (
+                            filteredOptions.map((option) => (
+                                <button
+                                    key={option}
+                                    type="button"
+                                    onClick={() => handleSelect(option)}
+                                    className={`w-full px-4 py-2.5 text-left hover:bg-[#D4AF37]/10 transition-colors ${value === option
+                                        ? 'bg-[#D4AF37]/20 text-[#D4AF37]'
+                                        : 'text-theme-text-secondary'
+                                        }`}
+                                >
+                                    {option}
+                                </button>
+                            ))
+                        ) : (
+                            <div className="px-4 py-8 text-center text-theme-muted">
+                                No results found
+                            </div>
+                        )}
+                    </div>
+                    {/* Invisible Backdrop overlay solely for clicking outside */}
+                    <div
+                        className="fixed inset-0 z-[-1]"
+                        onClick={() => setIsOpen(false)}
+                    />
+                </div>
             )}
         </div>
     );
