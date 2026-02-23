@@ -11,7 +11,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { usePresence } from '../contexts/PresenceContext';
 import { useRouter } from 'next/navigation';
 import { useWebSocket } from '../hooks/useWebSocket';
-import type { IMicrophoneAudioTrack, ICameraVideoTrack } from 'agora-rtc-sdk-ng';
+import { prewarmPermissions } from '../lib/videoUtils';
 
 // VideoCall uses browser APIs — SSR must be disabled
 const VideoCall = dynamic(
@@ -70,7 +70,7 @@ export function ChatPage() {
     channelName: string; callerId: string; callerName: string; callerAvatar?: string;
   } | null>(null);
   const [outgoingCall, setOutgoingCall] = useState<CallInfo | null>(null);
-  const [activeCall, setActiveCall] = useState<CallInfo | null>(null);
+  const [activeCall, setActiveCall] = useState<(CallInfo & { autoJoin?: boolean }) | null>(null);
 
   // ── Always-fresh refs (stale-closure safe for WS handlers) ───────────────
   const activeThreadRef = useRef<ConversationThread | null>(null);
@@ -174,8 +174,10 @@ export function ChatPage() {
           });
 
         } else if (data.type === 'call_accept') {
-          // Callee accepted — caller mounts VideoCall
-          setActiveCall(prev => prev || outgoingCallRef.current);
+          // Callee accepted — caller mounts VideoCall with autoJoin
+          if (outgoingCallRef.current) {
+            setActiveCall({ ...outgoingCallRef.current, autoJoin: true });
+          }
           setOutgoingCall(null);
 
         } else if (data.type === 'call_reject') {
@@ -327,6 +329,9 @@ export function ChatPage() {
     if (!activeThread || !user || !client || client.readyState !== WebSocket.OPEN) return;
 
     try {
+      // Start pre-warming immediately
+      prewarmPermissions();
+
       const { channel_name } = await api.video.initiate(activeThread.partner.id);
 
       const callInfo: CallInfo = {
@@ -346,13 +351,18 @@ export function ChatPage() {
     if (!incomingCall) return;
 
     try {
+      // Pre-warm permissions at the moment of acceptance (as requested)
+      prewarmPermissions();
       await api.video.accept(incomingCall.channelName);
+      // Immediately set active call with autoJoin: true
+      // This click (user gesture) allows join() to run immediately.
       setActiveCall({
         channelName: incomingCall.channelName,
-        token: '', // Hook will fetch it
+        token: '',
         partnerName: incomingCall.callerName,
         partnerAvatar: incomingCall.callerAvatar,
         partnerId: incomingCall.callerId,
+        autoJoin: true,
       });
       sendMessage({
         type: 'call_accept',
@@ -422,6 +432,7 @@ export function ChatPage() {
           channelName={activeCall.channelName}
           partnerName={activeCall.partnerName}
           partnerAvatar={activeCall.partnerAvatar}
+          autoJoin={activeCall.autoJoin}
           onCallEnd={handleEndCall}
         />
       )}

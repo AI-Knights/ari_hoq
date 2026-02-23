@@ -9,6 +9,7 @@ import AgoraRTC, {
     NetworkQuality,
 } from 'agora-rtc-sdk-ng';
 import { api } from '../lib/api';
+import { prewarmPermissions as prewarm } from '../lib/videoUtils';
 
 const APP_ID = process.env.NEXT_PUBLIC_AGORA_APP_ID;
 
@@ -26,6 +27,8 @@ export const useAgora = () => {
 
     const [isMuted, setIsMuted] = useState(false);
     const [isCameraOff, setIsCameraOff] = useState(false);
+
+    const [error, setError] = useState<string | null>(null);
 
     const clientRef = useRef<IAgoraRTCClient | null>(null);
     const audioTrackRef = useRef<IMicrophoneAudioTrack | null>(null);
@@ -89,49 +92,79 @@ export const useAgora = () => {
             client.off('user-published', handleUserPublished as any);
             client.off('user-unpublished', handleUserUnpublished as any);
             client.off('network-quality', handleNetworkQuality);
-            // We don't call leave() here because it might be called while client is still joining or disconnected
-            // The leave() function below has the necessary checks
         };
     }, []);
 
+
     const join = useCallback(async (channelName: string) => {
         if (!APP_ID || !clientRef.current) {
-            console.error('Agora App ID is missing or client not initialized');
+            setError('Agora App ID is missing or client not initialized');
             return;
         }
 
-        if (joiningRef.current) {
-            console.warn('Already joining a channel');
-            return;
-        }
-
-        if (clientRef.current.connectionState !== 'DISCONNECTED') {
-            console.warn('Client is not in DISCONNECTED state:', clientRef.current.connectionState);
-            return;
-        }
-
+        if (joiningRef.current) return;
         joiningRef.current = true;
+        setError(null);
 
         try {
-            // 1. Fetch token from backend
-            const { token, uid } = await api.agora.getToken(channelName);
+            // 1. Parallelize: Token fetch and Track creation (Before join)
+            const [tokenData, tracks] = await Promise.all([
+                api.agora.getToken(channelName),
+                Promise.all([
+                    AgoraRTC.createMicrophoneAudioTrack({
+                        encoderConfig: "music_standard",
+                        AEC: true, AGC: true, ANS: true,
+                    }),
+                    AgoraRTC.createCameraVideoTrack({
+                        facingMode: "user",
+                        encoderConfig: {
+                            width: { min: 320, ideal: 640, max: 1280 },
+                            height: { min: 240, ideal: 480, max: 720 },
+                            frameRate: 15,
+                        }
+                    })
+                ]).catch(async (e) => {
+                    console.warn("[Agora] Camera access failed, falling back to audio only:", e);
+                    const audioOnly = await AgoraRTC.createMicrophoneAudioTrack({
+                        encoderConfig: "music_standard",
+                        AEC: true, AGC: true, ANS: true,
+                    });
+                    return [audioOnly, null];
+                })
+            ]);
 
-            // 2. Join channel
-            await clientRef.current.join(APP_ID, channelName, token, uid);
+            // 2. Client side check: If we left while tokens/tracks were fetching, stop here
+            if (clientRef.current.connectionState !== 'DISCONNECTED') {
+                if (clientRef.current.connectionState !== 'CONNECTING') {
+                    joiningRef.current = false;
+                    return;
+                }
+            }
 
-            // 3. Create media tracks
-            const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
+            const [audioTrack, videoTrack] = tracks as [IMicrophoneAudioTrack, ICameraVideoTrack | null];
+
+            // 3. Join with actual token
+            await clientRef.current.join(APP_ID, channelName, tokenData.token, tokenData.uid);
 
             audioTrackRef.current = audioTrack;
-            videoTrackRef.current = videoTrack;
             setLocalAudioTrack(audioTrack);
-            setLocalVideoTrack(videoTrack);
 
-            // 4. Publish tracks
-            await clientRef.current.publish([audioTrack, videoTrack]);
+            if (videoTrack) {
+                videoTrackRef.current = videoTrack;
+                setLocalVideoTrack(videoTrack);
+                await clientRef.current.publish([audioTrack, videoTrack]);
+            } else {
+                await clientRef.current.publish([audioTrack]);
+                setError("Could not access camera, proceeding with audio only.");
+            }
 
-        } catch (error) {
+        } catch (error: any) {
+            if (error.code === 'OPERATION_ABORTED') {
+                console.warn('[Agora] Join operation aborted (expected if user left).');
+                return;
+            }
             console.error('Failed to join Agora channel:', error);
+            setError(`Something went wrong: ${error.message || 'Unknown error'} (code: ${error.code})`);
         } finally {
             joiningRef.current = false;
         }
@@ -200,5 +233,8 @@ export const useAgora = () => {
         toggleMute,
         isCameraOff,
         toggleCamera,
+        error,
+        setError,
+        prewarmPermissions: prewarm
     };
 };
