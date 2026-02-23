@@ -350,3 +350,29 @@ class Block(models.Model):
 
     def __str__(self):
         return f"{self.blocker.get_short_name()} blocked {self.blocked.get_short_name()}"
+
+# ---------------------------------------------------------------------------
+# Video Call
+# ---------------------------------------------------------------------------
+
+class VideoCall(models.Model):
+    STATUS_CHOICES = (
+        ('pending', 'Pending'),
+        ('active', 'Active'),
+        ('ended', 'Ended'),
+    )
+
+    channel_name = models.CharField(max_length=64, unique=True, default=uuid.uuid4)
+    initiator = models.ForeignKey(UserAccount, on_delete=models.CASCADE, related_name='calls_initiated')
+    receiver = models.ForeignKey(UserAccount, on_delete=models.CASCADE, related_name='calls_received')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Video Call"
+        verbose_name_plural = "Video Calls"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Call: {self.initiator.get_short_name()} → {self.receiver.get_short_name()} ({self.status})"

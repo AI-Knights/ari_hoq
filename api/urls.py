@@ -39,4 +39,10 @@ urlpatterns = [
 
     # DRF router (viewsets)
     path('', include(router.urls)),
+
+    # Video Call
+    path('video/token/', views.AgoraTokenView.as_view(), name='video-token'),
+    path('video/call/initiate/', views.CallInitiateView.as_view(), name='call-initiate'),
+    path('video/call/accept/', views.CallAcceptView.as_view(), name='call-accept'),
+    path('video/call/end/', views.CallEndView.as_view(), name='call-end'),
 ]

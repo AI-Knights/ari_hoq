@@ -781,16 +781,17 @@ class MessageViewSet(viewsets.ModelViewSet):
             from channels.layers import get_channel_layer
             from asgiref.sync import async_to_sync
             channel_layer = get_channel_layer()
-            for msg_id in updated_ids:
-                async_to_sync(channel_layer.group_send)(
-                    f"inbox_{other_id}",
-                    {
-                        'type': 'message_read_update',
-                        'message_id': msg_id,
-                        'reader_id': u.id,
-                        'partner_id': u.id
-                    }
-                )
+            
+            # Send ONE batched update instead of individual ones
+            async_to_sync(channel_layer.group_send)(
+                f"inbox_{other_id}",
+                {
+                    'type': 'message_read_update',
+                    'message_ids': updated_ids,  # Note the 's'
+                    'reader_id': str(u.id),      # Ensure string
+                    'partner_id': str(u.id)
+                }
+            )
 
         msgs = Message.objects.filter(
             Q(sender=u, recipient_id=other_id) | Q(sender_id=other_id, recipient=u)
@@ -904,3 +905,153 @@ class ReportViewSet(viewsets.ModelViewSet):
         r.resolved_by = request.user
         r.save()
         return Response({'status': 'User warned', 'warnings_count': target.warnings_count})
+
+# ---------------------------------------------------------------------------
+# WebRTC / Agora Token
+# ---------------------------------------------------------------------------
+
+import time
+import uuid
+from django.conf import settings
+from agora_token_builder import RtcTokenBuilder
+from .models import VideoCall
+
+class AgoraTokenView(APIView):
+    """
+    POST /api/video/token/
+    Accepts channel_name and returns an Agora RTC token if the user is a participant.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        channel_name = request.data.get('channel_name')
+        if not channel_name:
+            return Response({'error': 'channel_name is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Validate that the user is a participant in the call
+        call = VideoCall.objects.filter(
+            Q(channel_name=channel_name) & 
+            (Q(initiator=request.user) | Q(receiver=request.user))
+        ).first()
+
+        if not call:
+            return Response({'error': 'Unauthorized or invalid channel'}, status=status.HTTP_403_FORBIDDEN)
+
+        app_id = getattr(settings, 'AGORA_APP_ID', None)
+        app_certificate = getattr(settings, 'AGORA_APP_CERTIFICATE', None)
+        
+        if not app_id or not app_certificate:
+            return Response({'error': 'Agora credentials are not configured'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # Build token with uid 0 (allows Agora to assign or just connects)
+        expiration_time_in_seconds = 3600
+        current_time_stamp = int(time.time())
+        privilege_expired_ts = current_time_stamp + expiration_time_in_seconds
+        role = 1 # Role_Publisher
+
+        token = RtcTokenBuilder.buildTokenWithUid(
+            app_id, 
+            app_certificate, 
+            channel_name, 
+            0,         # uid=0 → Agora grants access to any UID
+            role, 
+            privilege_expired_ts
+        )
+        
+        return Response({
+            'token': token, 
+            'uid': 0, 
+            'channel_name': channel_name,
+            'app_id': app_id
+        })
+
+
+class CallInitiateView(APIView):
+    """
+    POST /api/video/call/initiate/
+    Accepts receiver_id, creates a VideoCall record, and optionally signals via WS.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        receiver_id = request.data.get('receiver_id')
+        if not receiver_id:
+            return Response({'error': 'receiver_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            receiver = User.objects.get(id=receiver_id)
+        except User.DoesNotExist:
+            return Response({'error': 'Receiver not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Create the call record
+        call = VideoCall.objects.create(
+            initiator=request.user,
+            receiver=receiver,
+            channel_name=str(uuid.uuid4()),
+            status='pending'
+        )
+
+        # Send WebSocket notification to the receiver
+        from channels.layers import get_channel_layer
+        from asgiref.sync import async_to_sync
+        channel_layer = get_channel_layer()
+        
+        async_to_sync(channel_layer.group_send)(
+            f"inbox_{receiver.id}",
+            {
+                'type': 'call_signal',
+                'signal_type': 'incoming_call',
+                'sender_id': str(request.user.id),
+                'channel_name': call.channel_name,
+                'caller_info': MinimalUserSerializer(request.user).data
+            }
+        )
+
+        return Response({
+            'channel_name': call.channel_name,
+            'call_id': call.id
+        }, status=status.HTTP_201_CREATED)
+
+
+class CallAcceptView(APIView):
+    """
+    POST /api/video/call/accept/
+    Accepts channel_name and updates status to active.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        channel_name = request.data.get('channel_name')
+        call = VideoCall.objects.filter(channel_name=channel_name, receiver=request.user).first()
+        
+        if not call:
+            return Response({'error': 'Call not found'}, status=status.HTTP_404_NOT_FOUND)
+            
+        call.status = 'active'
+        call.save()
+        
+        return Response({'status': 'active'})
+
+
+class CallEndView(APIView):
+    """
+    POST /api/video/call/end/
+    Accepts channel_name and updates status to ended.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        channel_name = request.data.get('channel_name')
+        call = VideoCall.objects.filter(
+            Q(channel_name=channel_name) & 
+            (Q(initiator=request.user) | Q(receiver=request.user))
+        ).first()
+        
+        if not call:
+            return Response({'error': 'Call not found'}, status=status.HTTP_404_NOT_FOUND)
+            
+        call.status = 'ended'
+        call.ended_at = timezone.now()
+        call.save()
+        
+        return Response({'status': 'ended'})

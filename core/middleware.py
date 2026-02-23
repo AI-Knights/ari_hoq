@@ -20,6 +20,12 @@ class JWTAuthMiddleware(BaseMiddleware):
         query_params = dict(qp.split('=') for qp in query_string.split('&') if '=' in qp)
         token = query_params.get('token')
 
+        if not token:
+            headers = {k.decode(): v.decode() for k, v in scope.get('headers', [])}
+            auth = headers.get('authorization', '')
+            if auth.lower().startswith('bearer '):
+                token = auth.split(' ', 1)[1].strip()
+
         if token:
             scope['user'] = await get_user(token)
         else:
