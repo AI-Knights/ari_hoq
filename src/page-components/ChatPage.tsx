@@ -3,13 +3,21 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { DashboardLayout } from '../components/layout/DashboardLayout';
 import { ChatInterface } from '../components/ChatInterface';
+import dynamic from 'next/dynamic';
 import { Avatar } from '../components/ui/Avatar';
-import { Search, Loader2 } from 'lucide-react';
+import { Search, Loader2, Video, PhoneOff } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import { usePresence } from '../contexts/PresenceContext';
 import { useRouter } from 'next/navigation';
 import { useWebSocket } from '../hooks/useWebSocket';
+import type { IMicrophoneAudioTrack, ICameraVideoTrack } from 'agora-rtc-sdk-ng';
+
+// VideoCall uses browser APIs — SSR must be disabled
+const VideoCall = dynamic(
+  () => import('../components/VideoCall').then(mod => mod.VideoCall),
+  { ssr: false }
+);
 
 interface ConversationThread {
   partner: {
@@ -25,11 +33,28 @@ interface ConversationThread {
   unread: number;
 }
 
+interface CallInfo {
+  channelName: string;
+  token: string;
+  partnerName: string;
+  partnerAvatar?: string;
+  partnerId: string;
+}
+
+// ── Deterministic channel name from two user IDs ──────────────────────────
+function makeChannelName(idA: string | number, idB: string | number): string {
+  const a = String(idA).replace(/\D/g, '').substring(0, 8);
+  const b = String(idB).replace(/\D/g, '').substring(0, 8);
+  const [first, second] = [a, b].sort();
+  return `call${first}${second}`;
+}
+
 export function ChatPage() {
   const router = useRouter();
   const { user } = useAuth();
   const { onlineUsers } = usePresence();
 
+  // ── Chat state ────────────────────────────────────────────────────────────
   const [threads, setThreads] = useState<ConversationThread[]>([]);
   const [activeThread, setActiveThread] = useState<ConversationThread | null>(null);
   const [messages, setMessages] = useState<any[]>([]);
@@ -39,22 +64,29 @@ export function ChatPage() {
   const [hasMore, setHasMore] = useState(true);
   const [friendIds, setFriendIds] = useState<Set<string>>(new Set());
   const [notFriendTarget, setNotFriendTarget] = useState<string | null>(null);
+
+  // ── Video calling state ───────────────────────────────────────────────────
+  const [incomingCall, setIncomingCall] = useState<{
+    channelName: string; callerId: string; callerName: string; callerAvatar?: string;
+  } | null>(null);
+  const [outgoingCall, setOutgoingCall] = useState<CallInfo | null>(null);
+  const [activeCall, setActiveCall] = useState<CallInfo | null>(null);
+
+  // ── Always-fresh refs (stale-closure safe for WS handlers) ───────────────
   const activeThreadRef = useRef<ConversationThread | null>(null);
+  const threadsRef = useRef<ConversationThread[]>([]);
+  const outgoingCallRef = useRef<CallInfo | null>(null);
   const pendingReadsRef = useRef<Set<string>>(new Set());
 
-  useEffect(() => {
-    activeThreadRef.current = activeThread;
-  }, [activeThread]);
+  useEffect(() => { activeThreadRef.current = activeThread; }, [activeThread]);
+  useEffect(() => { threadsRef.current = threads; }, [threads]);
+  useEffect(() => { outgoingCallRef.current = outgoingCall; }, [outgoingCall]);
 
+  // ── Data loading ──────────────────────────────────────────────────────────
   const loadThreads = useCallback(async () => {
     try {
-      const [data, friendsData] = await Promise.all([
-        api.messages.threads(),
-        api.friends.list(),
-      ]);
+      const [data, friendsData] = await Promise.all([api.messages.threads(), api.friends.list()]);
       setThreads(Array.isArray(data) ? data : []);
-
-      // Build set of accepted friend IDs for the friendship guard
       const myId = user?.id;
       const friendships = Array.isArray(friendsData) ? friendsData : (friendsData?.results ?? []);
       const ids = new Set<string>();
@@ -72,26 +104,20 @@ export function ChatPage() {
     }
   }, [user?.id]);
 
-  const loadMessages = useCallback(async (partnerId: string | number, currentOffset: number = 0) => {
+  const loadMessages = useCallback(async (partnerId: string | number, startOffset = 0) => {
     setIsLoadingMessages(true);
     try {
-      const data = await api.messages.conversation(partnerId, 50, currentOffset);
-      const newMessages = Array.isArray(data) ? data.map(m => ({
-        ...m,
-        timestamp: new Date(m.timestamp)
-      })) : [];
-
-      if (currentOffset === 0) {
-        setMessages(newMessages);
+      const data = await api.messages.conversation(partnerId, 50, startOffset);
+      const msgs = Array.isArray(data) ? data.map(m => ({ ...m, timestamp: new Date(m.timestamp) })) : [];
+      if (startOffset === 0) {
+        setMessages(msgs);
       } else {
         setMessages(prev => {
-          const existingIds = new Set(prev.map(m => String(m.id)));
-          const uniqueNew = newMessages.filter(m => !existingIds.has(String(m.id)));
-          return [...uniqueNew, ...prev];
+          const ids = new Set(prev.map(m => String(m.id)));
+          return [...msgs.filter(m => !ids.has(String(m.id))), ...prev];
         });
       }
-
-      setHasMore(newMessages.length === 50);
+      setHasMore(msgs.length === 50);
     } catch (err) {
       console.error('Failed to load messages', err);
     } finally {
@@ -101,373 +127,394 @@ export function ChatPage() {
 
   const loadMoreMessages = async () => {
     if (!activeThread || isLoadingMessages || !hasMore) return;
-    const nextOffset = offset + 50;
-    setOffset(nextOffset);
-    await loadMessages(activeThread.partner.id, nextOffset);
+    const next = offset + 50;
+    setOffset(next);
+    await loadMessages(activeThread.partner.id, next);
   };
 
-  useEffect(() => {
-    loadThreads();
-  }, [loadThreads]);
+  useEffect(() => { loadThreads(); }, [loadThreads]);
 
-  // WebSocket URL and Hook
-  const wsUrl = user?.id ? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//127.0.0.1:8000/ws/chat/?token=${localStorage.getItem('access_token')}` : null;
-  const { sendMessage, client } = useWebSocket(wsUrl);
+  // ── WebSocket ─────────────────────────────────────────────────────────────
+  const getWsUrl = useCallback(() => {
+    if (!user?.id || typeof window === 'undefined') return null;
+    let apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://dev.projectyard.top';
+    apiUrl = apiUrl.replace(/\/+$/, '');
+    if (apiUrl.endsWith('/api')) apiUrl = apiUrl.slice(0, -4);
+    const wsBase = apiUrl.replace('http://', 'ws://').replace('https://', 'wss://');
+    return `${wsBase}/ws/chat/?token=${localStorage.getItem('access_token')}`;
+  }, [user?.id]);
 
-  // Global WebSocket Event Handling
+  const { sendMessage, client } = useWebSocket(getWsUrl());
+
+  // ── WebSocket message handler ─────────────────────────────────────────────
+  // NOTE: do NOT add track refs to deps — they are mutable refs (stable)
   useEffect(() => {
     if (!client) return;
 
     const handleMessage = (data: any) => {
       try {
         if (data.type === 'read_receipt') {
-          console.log(`[RECEIVER] 📩 Received read receipt from partner for message ID: ${data.message_id}`);
-          setMessages(prev => {
-            pendingReadsRef.current.add(String(data.message_id));
-            return prev.map(msg => {
-              if (String(msg.id) === String(data.message_id)) {
-                return { ...msg, is_read: true };
-              }
-              return msg;
-            });
-          });
-          if (data.partner_id) {
-            setThreads(prev => prev.map(t =>
-              String(t.partner.id) === String(data.partner_id) ? { ...t, unread: 0 } : t
-            ));
-          }
-        } else if (data.message) {
-          const newMsg = {
-            ...data.message,
-            timestamp: new Date(data.message.timestamp || Date.now())
-          };
+          const idsToRead = data.message_ids ? data.message_ids.map(String) : [String(data.message_id)];
 
+          setMessages(prev => {
+            idsToRead.forEach((id: string) => pendingReadsRef.current.add(id));
+            return prev.map(msg => idsToRead.includes(String(msg.id)) ? { ...msg, is_read: true } : msg);
+          });
+
+          if (data.partner_id) {
+            setThreads(prev => prev.map(t => String(t.partner.id) === String(data.partner_id) ? { ...t, unread: 0 } : t));
+          }
+
+        } else if (data.type === 'incoming_call') {
+          setIncomingCall({
+            channelName: data.channel_name,
+            callerId: String(data.sender_id),
+            callerName: data.caller_info?.name || data.caller_info?.username || 'Unknown',
+            callerAvatar: data.caller_info?.avatar || undefined,
+          });
+
+        } else if (data.type === 'call_accept') {
+          // Callee accepted — caller mounts VideoCall
+          setActiveCall(prev => prev || outgoingCallRef.current);
+          setOutgoingCall(null);
+
+        } else if (data.type === 'call_reject') {
+          setOutgoingCall(null);
+          setIncomingCall(null);
+
+        } else if (data.type === 'call_end') {
+          setActiveCall(null);
+          setOutgoingCall(null);
+          setIncomingCall(null);
+
+        } else if (data.message) {
+          const newMsg = { ...data.message, timestamp: new Date(data.message.timestamp || Date.now()) };
           if (pendingReadsRef.current.has(String(newMsg.id))) {
             newMsg.is_read = true;
             pendingReadsRef.current.delete(String(newMsg.id));
           }
 
-          const msgPartnerId = String(newMsg.sender?.id || newMsg.sender_id || newMsg.sender) === String(user?.id)
-            ? String(newMsg.recipient?.id || newMsg.recipient_id || newMsg.recipient)
-            : String(newMsg.sender?.id || newMsg.sender_id || newMsg.sender);
+          const senderStr = String(newMsg.sender?.id ?? newMsg.sender_id ?? newMsg.sender);
+          const recipientStr = String(newMsg.recipient?.id ?? newMsg.recipient_id ?? newMsg.recipient);
+          const msgPartnerId = senderStr === String(user?.id) ? recipientStr : senderStr;
 
-          const currentActive = activeThreadRef.current;
-          if (currentActive && String(currentActive.partner.id) === msgPartnerId) {
+          if (activeThreadRef.current && String(activeThreadRef.current.partner.id) === msgPartnerId) {
             setMessages(prev => {
-              if (prev.some(m => String(m.id) === String(newMsg.id))) return prev;
-              const isEchoFromMe = String(newMsg.sender?.id || newMsg.sender_id || newMsg.sender) === String(user?.id);
-              if (isEchoFromMe) {
-                const optimisticMatchIdx = prev.findIndex(m => String(m.id).startsWith('temp-') && m.content === newMsg.content);
-                if (optimisticMatchIdx !== -1) {
+              const exists = prev.some(m => String(m.id) === String(newMsg.id));
+              if (exists) return prev;
+
+              // If we have a temp_id match, replace the optimistic message
+              if (data.temp_id) {
+                const tempIndex = prev.findIndex(m => String(m.id) === String(data.temp_id));
+                if (tempIndex !== -1) {
                   const next = [...prev];
-                  next[optimisticMatchIdx] = newMsg;
+                  next[tempIndex] = newMsg;
                   return next;
                 }
               }
+
               return [...prev, newMsg];
             });
 
-            if (String(newMsg.sender?.id || newMsg.sender_id || newMsg.sender) !== String(user?.id)) {
-              if (client.readyState === WebSocket.OPEN) {
-                client.send({
-                  type: 'read_receipt',
-                  message_id: newMsg.id
-                });
-              }
+            if (senderStr !== String(user?.id) && client.readyState === WebSocket.OPEN) {
+              sendMessage({ type: 'read_receipt', message_id: newMsg.id });
             }
           }
 
           setThreads(prev => {
-            const threadExists = prev.some(t => String(t.partner.id) === msgPartnerId);
-            if (!threadExists) {
-              loadThreads();
-              return prev;
-            }
-            return prev.map(t =>
-              String(t.partner.id) === msgPartnerId
-                ? {
-                  ...t,
-                  last_message: newMsg.content,
-                  last_message_sender_id: newMsg.sender?.id || newMsg.sender_id || newMsg.sender,
-                  unread: (newMsg.sender?.id || newMsg.sender_id || newMsg.sender) === user?.id
-                    ? t.unread
-                    : (activeThreadRef.current && String(activeThreadRef.current.partner.id) === msgPartnerId ? 0 : t.unread + 1)
-                }
-                : t
-            );
+            const exists = prev.some(t => String(t.partner.id) === msgPartnerId);
+            if (!exists) { loadThreads(); return prev; }
+            return prev.map(t => String(t.partner.id) === msgPartnerId ? {
+              ...t,
+              last_message: newMsg.content,
+              last_message_sender_id: senderStr,
+              timestamp: newMsg.timestamp.toISOString(),
+              unread: senderStr === String(user?.id) ? t.unread
+                : (activeThreadRef.current && String(activeThreadRef.current.partner.id) === msgPartnerId ? 0 : t.unread + 1),
+            } : t);
           });
         }
       } catch (err) {
-        console.error('[CHAT] ❌ Parse error:', err);
+        console.error('[CHAT] WS error:', err);
       }
     };
 
     client.on('message', handleMessage);
     return () => client.off('message', handleMessage);
-  }, [client, user?.id, loadThreads]);
+  }, [client, user?.id, loadThreads, sendMessage]);
 
-  // Load initial messages when active thread changes
+  // ── Active thread effects ─────────────────────────────────────────────────
   useEffect(() => {
     if (!activeThread) return;
-    if (typeof window !== 'undefined') {
-      window.history.replaceState({}, '', `/chat?userId=${activeThread.partner.id}`);
-    }
-    setOffset(0);
-    setHasMore(true);
+    if (typeof window !== 'undefined') window.history.replaceState({}, '', `/chat?userId=${activeThread.partner.id}`);
+    setOffset(0); setHasMore(true);
     loadMessages(activeThread.partner.id, 0);
+  }, [activeThread?.partner.id, loadMessages]);
 
-    // Send read receipts for any existing unread messages from this partner
-    // We can do this by just sending a generic read ping if the thread had unread messages
-    if (activeThread.unread > 0 && client?.readyState === WebSocket.OPEN) {
-      // Find the last message id received from them (heuristically from the local unread count or just tell the server we read the thread)
-      // Since our backend consumer expects a specific message_id to mark read, we'll let the loadMessages fetch handle it or we can loop through locally loaded messages.
-      // Because `loadMessages` marks them read on the server via the API (`api.messages.getThread`), the server already knows they are read.
-      // The issue is simply the other person's UI wasn't updating.
-      // The API view `getThread` in backend SHOULD broadcast read receipts, but it currently might not.
-      // We'll iterate through unread messages once they load and send WS read receipts for them.
-    }
-  }, [activeThread?.partner.id, loadMessages, client]);
-
-  // Hook to send read receipts when messages load
   useEffect(() => {
-    if (!activeThread || !user || !client) return;
+    if (!activeThread || !user || !client || client.readyState !== WebSocket.OPEN) return;
 
-    // Find messages from the partner that are marked unread locally
-    const unreadFromPartner = messages.filter(
-      m => String(m.sender?.id || m.sender_id || m.sender) !== String(user.id) && !m.is_read
+    const unread = messages.filter(m =>
+      String(m.sender?.id ?? m.sender_id ?? m.sender) !== String(user.id) &&
+      !m.is_read &&
+      !pendingReadsRef.current.has(String(m.id))
     );
 
-    unreadFromPartner.forEach(m => {
-      if (client.readyState === WebSocket.OPEN) {
-        console.log(`[SENDER] 📖 I opened the chat. Sending read signal for old unread message ${m.id} to backend...`);
-        sendMessage({
-          type: 'read_receipt',
-          message_id: m.id
-        });
-      }
-    });
+    if (unread.length > 0) {
+      const ids = unread.map(m => String(m.id));
+      ids.forEach(id => pendingReadsRef.current.add(id));
 
-    // Optimistically mark them as read locally so we don't send duplicate receipts
-    if (unreadFromPartner.length > 0) {
+      sendMessage({ type: 'read_receipt', message_ids: ids });
+
       setMessages(prev => prev.map(m =>
-        String(m.sender?.id || m.sender_id || m.sender) !== String(user.id) ? { ...m, is_read: true } : m
+        ids.includes(String(m.id)) ? { ...m, is_read: true } : m
       ));
     }
   }, [messages, activeThread, user, client, sendMessage]);
 
   useEffect(() => {
-    if (threads.length > 0 && typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const userIdParam = params.get('userId');
-      if (userIdParam) {
-        // Friendship guard: only open chat if the user is still a friend
-        if (friendIds.size > 0 && !friendIds.has(userIdParam)) {
-          setNotFriendTarget(userIdParam);
-          return;
-        }
-        setNotFriendTarget(null);
-        const targetThread = threads.find((t) => String(t.partner.id) === userIdParam);
-        if (targetThread && !activeThread) {
-          setActiveThread(targetThread);
-        }
-      }
-    }
+    if (!threads.length || typeof window === 'undefined') return;
+    const userId = new URLSearchParams(window.location.search).get('userId');
+    if (!userId) return;
+    if (friendIds.size > 0 && !friendIds.has(userId)) { setNotFriendTarget(userId); return; }
+    setNotFriendTarget(null);
+    const t = threads.find(t => String(t.partner.id) === userId);
+    if (t && !activeThread) setActiveThread(t);
   }, [threads, friendIds, activeThread]);
 
+  // ── Message handlers ──────────────────────────────────────────────────────
   const handleSendMessage = async (content: string) => {
     if (!activeThread || !user) return;
-
-    const optimisticMsg = {
-      id: `temp-${Date.now()}`,
-      content,
-      sender: user,
-      recipient: activeThread.partner,
-      timestamp: new Date(),
-      is_read: false
-    };
-
-    setMessages(prev => [...prev, optimisticMsg]);
-    setThreads(prev => prev.map(t =>
-      t.partner.id === activeThread.partner.id
-        ? { ...t, last_message: content, last_message_sender_id: user.id }
-        : t
-    ));
-
+    const tempId = `temp-${Date.now()}`;
+    const optimistic = { id: tempId, content, sender: user, recipient: activeThread.partner, timestamp: new Date(), is_read: false };
+    setMessages(prev => [...prev, optimistic]);
+    setThreads(prev => prev.map(t => t.partner.id === activeThread.partner.id
+      ? { ...t, last_message: content, last_message_sender_id: user.id, timestamp: new Date().toISOString() }
+      : t));
     try {
       if (client?.readyState === WebSocket.OPEN) {
-        sendMessage({
-          content,
-          recipient_id: activeThread.partner.id
-        });
+        sendMessage({ content, recipient_id: activeThread.partner.id, temp_id: tempId });
       } else {
-        // Fallback
-        const rawMsg = await api.messages.send({ recipient_id: activeThread.partner.id, content });
-        const newMsg = { ...rawMsg, timestamp: new Date(rawMsg.timestamp || Date.now()) };
-        setMessages(prev => prev.map(m => m.id === optimisticMsg.id ? newMsg : m));
+        const raw = await api.messages.send({ recipient_id: activeThread.partner.id, content });
+        setMessages(prev => prev.map(m => m.id === tempId ? { ...raw, timestamp: new Date(raw.timestamp || Date.now()) } : m));
       }
     } catch (err) {
-      console.error('Failed to send message', err);
-      // Remove optimistic message on failure
-      setMessages(prev => prev.filter(m => m.id !== optimisticMsg.id));
+      console.error('Send failed', err);
+      setMessages(prev => prev.filter(m => m.id !== optimistic.id));
     }
   };
 
   const handleDeleteChat = async () => {
     if (!activeThread) return;
-    try {
-      await api.messages.deleteChat(activeThread.partner.id);
-      setActiveThread(null);
-      loadThreads();
-    } catch (err) {
-      console.error('Failed to delete chat:', err);
-    }
+    await api.messages.deleteChat(activeThread.partner.id);
+    setActiveThread(null); loadThreads();
   };
 
   const handleUnfriend = async () => {
     if (!activeThread) return;
-    try {
-      await api.friends.unfriend(activeThread.partner.id);
-      setActiveThread(null);
-      loadThreads();
-    } catch (err) {
-      console.error('Failed to unfriend:', err);
-    }
+    await api.friends.unfriend(activeThread.partner.id);
+    setActiveThread(null); loadThreads();
   };
 
   const handleBlockUser = async () => {
     if (!activeThread) return;
+    await api.friends.block(activeThread.partner.id);
+    setActiveThread(null); loadThreads();
+  };
+
+  // ── Call handlers ─────────────────────────────────────────────────────────
+  const handleInitiateCall = async () => {
+    if (!activeThread || !user || !client || client.readyState !== WebSocket.OPEN) return;
+
     try {
-      await api.friends.block(activeThread.partner.id);
-      setActiveThread(null);
-      loadThreads();
+      const { channel_name } = await api.video.initiate(activeThread.partner.id);
+
+      const callInfo: CallInfo = {
+        channelName: channel_name,
+        token: '', // Hook will fetch it
+        partnerName: activeThread.partner.name || activeThread.partner.username || 'Partner',
+        partnerAvatar: activeThread.partner.avatar || undefined,
+        partnerId: String(activeThread.partner.id),
+      };
+      setOutgoingCall(callInfo);
     } catch (err) {
-      console.error('Failed to block:', err);
+      console.error('[ChatPage] Failed to initiate call:', err);
     }
   };
 
+  const handleAcceptCall = async () => {
+    if (!incomingCall) return;
+
+    try {
+      await api.video.accept(incomingCall.channelName);
+      setActiveCall({
+        channelName: incomingCall.channelName,
+        token: '', // Hook will fetch it
+        partnerName: incomingCall.callerName,
+        partnerAvatar: incomingCall.callerAvatar,
+        partnerId: incomingCall.callerId,
+      });
+      sendMessage({
+        type: 'call_accept',
+        recipient_id: incomingCall.callerId,
+        channel_name: incomingCall.channelName
+      });
+      setIncomingCall(null);
+    } catch (err) {
+      console.error('[ChatPage] Failed to accept call:', err);
+    }
+  };
+
+  const handleEndCall = () => {
+    const call = activeCall || outgoingCall;
+    if (call && client?.readyState === WebSocket.OPEN) {
+      sendMessage({ type: 'call_end', recipient_id: call.partnerId, channel_name: call.channelName });
+    }
+    setActiveCall(null);
+    setOutgoingCall(null);
+  };
+
+  const handleRejectCall = () => {
+    if (!incomingCall) return;
+    sendMessage({ type: 'call_reject', recipient_id: incomingCall.callerId, channel_name: incomingCall.channelName });
+    setIncomingCall(null);
+  };
+
+  // ── Utilities ─────────────────────────────────────────────────────────────
   const formatTime = (ts: string) => {
     if (!ts) return '';
-    const date = new Date(ts);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.round(diffMs / 60000);
+    const diffMins = Math.round((Date.now() - new Date(ts).getTime()) / 60000);
     if (diffMins < 1) return 'just now';
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffMins < 1440) return `${Math.round(diffMins / 60)}h ago`;
-    return date.toLocaleDateString();
+    return new Date(ts).toLocaleDateString();
   };
 
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <DashboardLayout>
-      <div className="flex-1 min-h-0 flex lg:grid lg:grid-cols-4 gap-6 overflow-hidden">
-        {/* Sidebar */}
-        <div className={`${activeThread ? 'hidden lg:flex' : 'flex'} w-full lg:w-auto h-full min-h-0 flex-col bg-theme-card border border-theme-border rounded-2xl overflow-hidden backdrop-blur-sm lg:col-span-1`}>
-          <div className="p-4 border-b border-theme-border shrink-0">
-            <h2 className="text-xl font-serif font-bold text-theme-text mb-4">Messages</h2>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-theme-text-secondary" />
-              <input
-                type="text"
-                placeholder="Search chats..."
-                className="w-full bg-theme-input border border-theme-input-border rounded-lg pl-9 pr-4 py-2 text-sm text-theme-text focus:outline-none focus:border-[#D4AF37]"
-              />
+    <div className="h-full w-full">
+
+      {/* ── Outgoing call overlay (caller waiting) ──────────────── */}
+      {outgoingCall && !activeCall && (
+        <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#0d1b3e] border border-white/10 rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
+            <div className="relative w-28 h-28 mx-auto mb-6">
+              <span className="absolute inset-0 rounded-full border-4 border-[#D4AF37]/40 animate-ping" />
+              <div className="relative w-full h-full rounded-full overflow-hidden border-4 border-[#D4AF37]/60 bg-[#1a2f5e]">
+                {outgoingCall.partnerAvatar
+                  ? <img src={outgoingCall.partnerAvatar} alt="" className="w-full h-full object-cover" />
+                  : <span className="absolute inset-0 flex items-center justify-center text-white text-4xl font-bold">{(outgoingCall.partnerName || '?').charAt(0).toUpperCase()}</span>
+                }
+              </div>
+            </div>
+            <h3 className="text-2xl font-serif text-white font-bold mb-1">{outgoingCall.partnerName}</h3>
+            <p className="text-gray-400 text-sm mb-8 animate-pulse">Calling…</p>
+            <button onClick={handleEndCall} className="w-16 h-16 bg-red-600 hover:bg-red-700 active:scale-95 rounded-full flex items-center justify-center mx-auto text-white">
+              <PhoneOff className="w-7 h-7" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Active video call (both sides) ─────────────────────── */}
+      {activeCall && (
+        <VideoCall
+          channelName={activeCall.channelName}
+          partnerName={activeCall.partnerName}
+          partnerAvatar={activeCall.partnerAvatar}
+          onCallEnd={handleEndCall}
+        />
+      )}
+
+      {/* ── Incoming call modal ─────────────────────────────────── */}
+      {incomingCall && !activeCall && (
+        <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#0d1b3e] border border-white/10 rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
+            <div className="relative w-28 h-28 mx-auto mb-6">
+              <span className="absolute inset-0 rounded-full border-4 border-[#D4AF37]/40 animate-ping" />
+              <div className="relative w-full h-full rounded-full overflow-hidden border-4 border-[#D4AF37]/60 bg-[#1a2f5e]">
+                {incomingCall.callerAvatar
+                  ? <img src={incomingCall.callerAvatar} alt="" className="w-full h-full object-cover" />
+                  : <span className="absolute inset-0 flex items-center justify-center text-white text-4xl font-bold">{(incomingCall.callerName || '?').charAt(0).toUpperCase()}</span>
+                }
+              </div>
+            </div>
+            <h3 className="text-2xl font-serif text-white font-bold mb-1">{incomingCall.callerName}</h3>
+            <p className="text-[#D4AF37] text-sm mb-8 tracking-wide">Incoming video call…</p>
+            <div className="flex justify-center gap-8">
+              <div className="flex flex-col items-center gap-2">
+                <button onClick={handleRejectCall} className="w-16 h-16 bg-red-600 hover:bg-red-700 active:scale-95 rounded-full flex items-center justify-center text-white"><PhoneOff className="w-7 h-7 rotate-135" /></button>
+                <span className="text-xs text-gray-400">Decline</span>
+              </div>
+              <div className="flex flex-col items-center gap-2">
+                <button onClick={handleAcceptCall} className="w-16 h-16 bg-green-600 hover:bg-green-700 active:scale-95 rounded-full flex items-center justify-center text-white"><Video className="w-7 h-7" /></button>
+                <span className="text-xs text-gray-400">Accept</span>
+              </div>
             </div>
           </div>
+        </div>
+      )}
 
-          <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
-            {isLoading ? (
-              <div className="flex justify-center p-8">
-                <Loader2 className="w-6 h-6 animate-spin text-[#D4AF37]" />
-              </div>
-            ) : threads.length === 0 ? (
-              <div className="p-6 text-center text-sm text-theme-text-secondary">
-                No conversations yet. Find a partner to start chatting!
-              </div>
-            ) : (
-              threads.map((thread) => {
-                const isOnlineContext = onlineUsers[thread.partner.id];
-                const currentStatus = isOnlineContext === true
-                  ? 'online'
-                  : (isOnlineContext === false
-                    ? 'offline'
-                    : thread.partner.status || 'offline');
+      {/* ── Chat layout ─────────────────────────────────────────── */}
+      <DashboardLayout isFullHeight={true}>
+        <div className="flex-1 min-h-0 flex lg:grid lg:grid-cols-4 lg:gap-6 overflow-hidden">
 
+          {/* Sidebar */}
+          <div className={`${activeThread ? 'hidden lg:flex' : 'flex'} w-full lg:w-auto h-full min-h-0 flex-col bg-theme-card lg:border border-theme-border lg:rounded-2xl overflow-hidden lg:col-span-1`}>
+            <div className="p-4 border-b border-theme-border shrink-0">
+              <h2 className="text-xl font-serif font-bold text-theme-text mb-4">Messages</h2>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-theme-text-secondary" />
+                <input type="text" placeholder="Search chats..." className="w-full bg-theme-input border border-theme-input-border rounded-lg pl-9 pr-4 py-2 text-sm text-theme-text focus:outline-none focus:border-[#D4AF37]" />
+              </div>
+            </div>
+            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+              {isLoading ? (
+                <div className="flex justify-center p-8"><Loader2 className="w-6 h-6 animate-spin text-[#D4AF37]" /></div>
+              ) : threads.length === 0 ? (
+                <p className="p-6 text-center text-sm text-theme-text-secondary">No conversations yet.</p>
+              ) : threads.map(thread => {
+                const isOnline = onlineUsers[thread.partner.id];
+                const status = isOnline === true ? 'online' : isOnline === false ? 'offline' : thread.partner.status ?? 'offline';
                 const isFriend = friendIds.has(String(thread.partner.id));
-
                 return (
                   <button
                     key={thread.partner.id}
                     onClick={() => {
-                      if (!isFriend) {
-                        setActiveThread(null);
-                        setNotFriendTarget(String(thread.partner.id));
-                        return;
-                      }
-                      setNotFriendTarget(null);
-                      setActiveThread(thread);
-                      if (thread.unread > 0) {
-                        setThreads(prev => prev.map(t =>
-                          t.partner.id === thread.partner.id ? { ...t, unread: 0 } : t
-                        ));
-                      }
+                      if (!isFriend) { setNotFriendTarget(String(thread.partner.id)); return; }
+                      setNotFriendTarget(null); setActiveThread(thread);
+                      if (thread.unread > 0) setThreads(prev => prev.map(t => t.partner.id === thread.partner.id ? { ...t, unread: 0 } : t));
                     }}
-                    className={`w-full p-4 flex items-start gap-3 hover:bg-theme-bg-hover transition-colors text-left border-b border-theme-border ${activeThread?.partner.id === thread.partner.id ? 'bg-theme-bg-hover border-l-2 border-l-[#D4AF37]' : ''} ${!isFriend ? 'opacity-50' : ''}`}
+                    className={`w-full p-4 flex items-start gap-3 hover:bg-theme-bg-hover transition-colors text-left border-b border-theme-border ${activeThread?.partner.id === thread.partner.id ? 'bg-theme-bg-hover border-l-2 border-l-[#D4AF37]' : ''} ${!isFriend ? 'opacity-60' : ''}`}
                   >
-                    <div
-                      onClick={(e) => { e.stopPropagation(); router.push(`/u/${thread.partner.id}`); }}
-                      className="shrink-0 relative z-10 hover:opacity-80 transition-opacity"
-                      title="View Profile"
-                    >
-                      <Avatar
-                        src={thread.partner.avatar || undefined}
-                        fallback={(thread.partner.name || thread.partner.username || 'U').charAt(0)}
-                        status={isFriend ? (currentStatus as any) : 'offline'}
-                      />
-                    </div>
-                    <div className="flex-1 overflow-hidden">
-                      <div className="flex justify-between items-baseline mb-1">
-                        <span
-                          onClick={(e) => { e.stopPropagation(); router.push(`/u/${thread.partner.id}`); }}
-                          className={`font-medium truncate relative z-10 hover:underline ${activeThread?.partner.id === thread.partner.id ? 'text-theme-text' : 'text-theme-text-secondary'}`}
-                          title="View Profile"
-                        >
-                          {thread.partner.name || thread.partner.username || 'Unknown User'}
-                        </span>
+                    <Avatar src={thread.partner.avatar || undefined} fallback={(thread.partner.name || thread.partner.username || 'U').charAt(0)} status={isFriend ? status as any : 'offline'} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-baseline mb-0.5">
+                        <span className="font-medium truncate text-theme-text text-sm">{thread.partner.name || thread.partner.username}</span>
                         <span className="text-xs text-theme-muted shrink-0 ml-2">{formatTime(thread.timestamp)}</span>
                       </div>
-                      <p className="text-sm text-theme-text-secondary truncate">
-                        {thread.last_message_sender_id && String(thread.last_message_sender_id) === user?.id ? 'You: ' : ''}{thread.last_message}
+                      <p className="text-xs text-theme-text-secondary truncate">
+                        {thread.last_message_sender_id && String(thread.last_message_sender_id) === String(user?.id) ? 'You: ' : ''}{thread.last_message}
                       </p>
                     </div>
                     {thread.unread > 0 && (
-                      <span className="w-5 h-5 bg-[#D4AF37] text-[#0A1A3A] text-xs font-bold rounded-full flex items-center justify-center">
-                        {thread.unread}
-                      </span>
+                      <span className="w-5 h-5 bg-[#D4AF37] text-[#0A1A3A] text-xs font-bold rounded-full flex items-center justify-center shrink-0">{thread.unread}</span>
                     )}
                   </button>
                 );
-              })
-            )}
+              })}
+            </div>
           </div>
-        </div>
 
-        {/* Chat Area */}
-        <div className={`${activeThread ? 'flex flex-col' : 'hidden lg:flex lg:flex-col'} w-full lg:col-span-3 h-full min-h-0`}>
-          {activeThread ? (() => {
-            const isOnlineContext = onlineUsers[activeThread.partner.id];
-            const activeStatus = isOnlineContext === true
-              ? 'online'
-              : (isOnlineContext === false
-                ? 'offline'
-                : activeThread.partner.status || 'offline');
-
-            return (
+          {/* Chat area */}
+          <div className={`${activeThread ? 'flex flex-col' : 'hidden lg:flex lg:flex-col'} w-full lg:col-span-3 h-full min-h-0`}>
+            {activeThread ? (
               <ChatInterface
                 partner={{
                   id: String(activeThread.partner.id),
-                  name: activeThread.partner.name || activeThread.partner.username || 'Unknown User',
+                  name: activeThread.partner.name || activeThread.partner.username || 'Unknown',
                   avatar: activeThread.partner.avatar || undefined,
-                  status: activeStatus as any,
+                  status: (onlineUsers[activeThread.partner.id] === true ? 'online' : 'offline') as any,
                 }}
                 existingMessages={messages}
                 onSendMessage={handleSendMessage}
@@ -477,43 +524,30 @@ export function ChatPage() {
                 onDeleteChat={handleDeleteChat}
                 onUnfriend={handleUnfriend}
                 onBlock={handleBlockUser}
+                onCallInitiate={handleInitiateCall}
                 onProfile={() => router.push(`/u/${activeThread.partner.id}`)}
                 onBack={() => {
                   setActiveThread(null);
-                  if (typeof window !== 'undefined') {
-                    window.history.replaceState({}, '', '/chat');
-                  }
+                  if (typeof window !== 'undefined') window.history.replaceState({}, '', '/chat');
                 }}
               />
-            );
-          })() : notFriendTarget ? (
-            <div className="h-full flex items-center justify-center bg-theme-card border border-theme-border rounded-2xl">
-              <div className="text-center text-theme-text-secondary max-w-sm px-6">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-500/10 flex items-center justify-center">
-                  <svg className="w-8 h-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                  </svg>
+            ) : notFriendTarget ? (
+              <div className="h-full flex items-center justify-center bg-theme-card border border-theme-border lg:rounded-2xl">
+                <div className="text-center px-6">
+                  <p className="text-xl font-serif font-bold mb-2">Not Friends</p>
+                  <p className="text-sm text-theme-text-secondary mb-4">Re-add them to chat.</p>
+                  <button onClick={() => router.push('/friends')} className="text-[#D4AF37] text-sm hover:underline">Go to Friends →</button>
                 </div>
-                <p className="text-xl font-serif font-bold mb-2 text-theme-text">Not Friends</p>
-                <p className="text-sm mb-4">You are no longer friends with this person. Re-add them as a friend to continue chatting.</p>
-                <button
-                  onClick={() => router.push('/friends')}
-                  className="text-[#D4AF37] text-sm font-medium hover:underline"
-                >
-                  Go to Friends →
-                </button>
               </div>
-            </div>
-          ) : (
-            <div className="h-full flex items-center justify-center bg-theme-card border border-theme-border rounded-2xl">
-              <div className="text-center text-theme-text-secondary">
-                <p className="text-xl font-serif font-bold mb-2">Select a conversation</p>
-                <p className="text-sm">Choose a conversation from the sidebar to start messaging.</p>
+            ) : (
+              <div className="h-full flex items-center justify-center bg-theme-card border border-theme-border lg:rounded-2xl">
+                <p className="text-xl font-serif font-bold text-theme-text-secondary">Select a conversation</p>
               </div>
-            </div>
-          )}
+            )}
+          </div>
+
         </div>
-      </div>
-    </DashboardLayout>
+      </DashboardLayout>
+    </div>
   );
 }

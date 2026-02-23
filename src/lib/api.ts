@@ -1,5 +1,21 @@
 // Central API utility — supports Bearer JWT tokens
-const API_BASE = 'http://127.0.0.1:8000/api';
+
+const getApiBase = () => {
+    let url = process.env.NEXT_PUBLIC_API_URL;
+    if (url) {
+        url = url.replace(/\/+$/, ''); // Strip trailing slashes
+        if (!url.endsWith('/api')) {
+            url += '/api';
+        }
+        return url;
+    }
+    if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+        return 'https://dev.projectyard.top/api';
+    }
+    return 'http://127.0.0.1:8000/api';
+};
+
+const API_BASE = getApiBase();
 
 function getToken(): string | null {
     if (typeof window === 'undefined') return null;
@@ -179,4 +195,16 @@ export const api = {
         allUsers: (search?: string) =>
             apiFetch(`/admin/users/${search ? `?search=${encodeURIComponent(search)}` : ''}`),
     },
+    agora: {
+        getToken: (channelName: string) =>
+            apiFetch<{ token: string, uid: number }>(`/video/token/`, { method: 'POST', body: JSON.stringify({ channel_name: channelName }) }),
+    },
+    video: {
+        initiate: (receiverId: string | number) =>
+            apiFetch('/video/call/initiate/', { method: 'POST', body: JSON.stringify({ receiver_id: receiverId }) }),
+        accept: (channelName: string) =>
+            apiFetch('/video/call/accept/', { method: 'POST', body: JSON.stringify({ channel_name: channelName }) }),
+        end: (channelName: string) =>
+            apiFetch('/video/call/end/', { method: 'POST', body: JSON.stringify({ channel_name: channelName }) }),
+    }
 };

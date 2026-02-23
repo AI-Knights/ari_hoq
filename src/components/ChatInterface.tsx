@@ -49,8 +49,9 @@ interface ChatInterfaceProps {
   onBlock?: () => Promise<void>;
   onBack?: () => void;
   onProfile?: () => void;
+  onCallInitiate?: () => void;
 }
-export function ChatInterface({ partner, existingMessages, onSendMessage, isLoadingMessages, onLoadMore, hasMore, onDeleteChat, onUnfriend, onBlock, onBack, onProfile }: ChatInterfaceProps) {
+export function ChatInterface({ partner, existingMessages, onSendMessage, isLoadingMessages, onLoadMore, hasMore, onDeleteChat, onUnfriend, onBlock, onBack, onProfile, onCallInitiate }: ChatInterfaceProps) {
   const defaultMessages: Message[] = [
     {
       id: '1',
@@ -164,20 +165,20 @@ export function ChatInterface({ partner, existingMessages, onSendMessage, isLoad
     }
   };
   return (
-    <div className="flex flex-col h-full min-h-0 bg-[#11224a]/50 border border-white/5 rounded-2xl overflow-hidden backdrop-blur-sm">
+    <div className="flex flex-col h-full min-h-0 bg-[#11224a]/50 lg:border border-white/5 lg:rounded-2xl overflow-hidden backdrop-blur-sm">
       {/* Header */}
       <div className="p-4 border-b border-white/5 flex justify-between items-center bg-[#11224a]/80">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 lg:gap-3">
           {onBack && (
             <button
               onClick={onBack}
-              className="lg:hidden p-2 -ml-2 text-gray-400 hover:text-white transition-colors"
+              className="lg:hidden p-2 -ml-1 text-gray-400 hover:text-white transition-colors"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
           )}
           <div
-            className="flex items-center gap-3 cursor-pointer hover:bg-white/5 p-1 -ml-1 rounded-lg transition-colors"
+            className="flex items-center gap-2 lg:gap-3 cursor-pointer hover:bg-white/5 p-1 -ml-1 rounded-lg transition-colors"
             onClick={onProfile}
           >
             <Avatar
@@ -186,8 +187,8 @@ export function ChatInterface({ partner, existingMessages, onSendMessage, isLoad
               status={partner.status === 'online' ? 'online' : 'offline'}
             />
             <div>
-              <h3 className="font-bold text-theme-text text-lg leading-tight hover:underline">{partner.name}</h3>
-              <p className="text-sm text-theme-text-secondary">
+              <h3 className="font-bold text-theme-text text-base lg:text-lg leading-tight hover:underline truncate max-w-[120px] xs:max-w-[180px] sm:max-w-none">{partner.name}</h3>
+              <p className="text-xs lg:text-sm text-theme-text-secondary">
                 {partner.status === 'online' ? 'Online now' : 'Last seen recently'}
               </p>
             </div>
@@ -203,10 +204,10 @@ export function ChatInterface({ partner, existingMessages, onSendMessage, isLoad
             <Button
               variant="secondary"
               size="sm"
+              className="px-2 lg:px-3"
               leftIcon={<Video className="w-4 h-4" />}
-              onClick={() => setShowZoomTimer(true)}>
-
-              Start Session
+              onClick={onCallInitiate || (() => setShowZoomTimer(true))}>
+              <span className="hidden lg:inline">Start Session</span>
             </Button>
           }
           <div className="relative" ref={menuRef}>
