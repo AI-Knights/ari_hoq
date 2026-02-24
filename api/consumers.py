@@ -65,8 +65,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         'partner_id': str(self.user.id)
                     }
                 )
-        elif msg_type in ['call_initiate', 'call_accept', 'call_reject', 'call_end'] and recipient_id:
-            # Route video call signaling to the recipient's inbox
+        elif msg_type == 'ping':
+            # Respond to heartbeat
+            await self.send(text_data=json.dumps({'type': 'pong'}))
+
+        elif msg_type in [
+            'call_initiate', 'call_accept', 'call_reject', 'call_end', 
+            'call_ringing', 'call_cancelled', 'call_busy', 'call_missed',
+            'user_muted', 'user_unmuted', 'camera_on', 'camera_off'
+        ] and recipient_id:
+            # Route video call signaling (including mute/camera state) to recipient
             is_friend = await self.verify_friendship(self.user.id, recipient_id)
             if not is_friend:
                 return
@@ -77,7 +85,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     'type': 'call_signal',
                     'signal_type': msg_type,
                     'sender_id': str(self.user.id),
-                    'channel_name': text_data_json.get('channel_name')
+                    'channel_name': text_data_json.get('channel_name'),
+                    'caller_info': text_data_json.get('caller_info'),  # forwarded from caller
                 }
             )
         elif content and recipient_id:

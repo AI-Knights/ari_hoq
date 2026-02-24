@@ -975,6 +975,8 @@ class CallInitiateView(APIView):
 
     def post(self, request):
         receiver_id = request.data.get('receiver_id')
+        channel_name = request.data.get('channel_name')
+        
         if not receiver_id:
             return Response({'error': 'receiver_id is required'}, status=status.HTTP_400_BAD_REQUEST)
         
@@ -983,13 +985,22 @@ class CallInitiateView(APIView):
         except User.DoesNotExist:
             return Response({'error': 'Receiver not found'}, status=status.HTTP_404_NOT_FOUND)
 
-        # Create the call record
-        call = VideoCall.objects.create(
-            initiator=request.user,
-            receiver=receiver,
-            channel_name=str(uuid.uuid4()),
-            status='pending'
-        )
+        # Use provided deterministic channel name, otherwise fallback to UUID
+        call_channel = channel_name if channel_name else str(uuid.uuid4())
+
+        # If call exists and is pending/active, reuse it
+        call = VideoCall.objects.filter(channel_name=call_channel).first()
+        if not call:
+            call = VideoCall.objects.create(
+                initiator=request.user,
+                receiver=receiver,
+                channel_name=call_channel,
+                status='pending'
+            )
+        else:
+            # Re-activating a dropped/retry call
+            call.status = 'pending'
+            call.save()
 
         # Send WebSocket notification to the receiver
         from channels.layers import get_channel_layer
@@ -1036,12 +1047,14 @@ class CallAcceptView(APIView):
 class CallEndView(APIView):
     """
     POST /api/video/call/end/
-    Accepts channel_name and updates status to ended.
+    Accepts channel_name and optional status. Updates call status.
     """
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
         channel_name = request.data.get('channel_name')
+        new_status = request.data.get('status', 'ended') # can be missed, rejected, etc.
+        
         call = VideoCall.objects.filter(
             Q(channel_name=channel_name) & 
             (Q(initiator=request.user) | Q(receiver=request.user))
@@ -1050,8 +1063,7 @@ class CallEndView(APIView):
         if not call:
             return Response({'error': 'Call not found'}, status=status.HTTP_404_NOT_FOUND)
             
-        call.status = 'ended'
-        call.ended_at = timezone.now()
+        call.status = new_status
         call.save()
         
-        return Response({'status': 'ended'})
+        return Response({'status': new_status})
