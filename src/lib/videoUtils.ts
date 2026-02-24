@@ -1,3 +1,6 @@
+// Module-level variable to track prewarmed media stream for cleanup
+let activePrewarmedStream: MediaStream | null = null;
+
 /**
  * Standalone utility for pre-warming camera and microphone permissions.
  * This is SSR-safe and does not depend on the Agora SDK.
@@ -13,13 +16,17 @@ export const prewarmPermissions = async (): Promise<boolean> => {
         }
 
         // Trigger the browser permission prompt
-        const stream = await navigator.mediaDevices.getUserMedia({
+        // Store the stream so we can stop it later without re-triggering the camera
+        activePrewarmedStream = await navigator.mediaDevices.getUserMedia({
             video: true,
             audio: true
         });
 
-        // Immediately stop tracks to release hardware
-        stream.getTracks().forEach(track => {
+        // We don't stop it immediately here IF we want to keep permissions "warm" 
+        // without the hardware turning on/off repeatedly, but for Agora's sake 
+        // in some browsers, just having called it once is enough.
+        // However, to be safe and silent, we stop them immediately but KEEP the reference.
+        activePrewarmedStream.getTracks().forEach(track => {
             track.stop();
         });
 
@@ -37,14 +44,17 @@ export const prewarmPermissions = async (): Promise<boolean> => {
 export const clearPrewarmedTracks = async () => {
     if (typeof window === 'undefined') return;
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true }).catch(() => null);
-        if (stream) {
-            stream.getTracks().forEach(track => {
+        // If we have a tracked stream, stop it directly
+        if (activePrewarmedStream) {
+            activePrewarmedStream.getTracks().forEach(track => {
                 track.stop();
                 (track as any).enabled = false;
             });
+            activePrewarmedStream = null;
         }
+
         // Also try to find any existing tracks via the browser's internal enumeration if possible
+        // This is a safety fallback but we avoid calling getUserMedia() here to prevent flicker
         const devices = await navigator.mediaDevices.enumerateDevices();
         console.log('[VideoUtils] Hardware tracks cleared');
     } catch (err) {
