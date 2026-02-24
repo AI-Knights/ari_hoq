@@ -75,36 +75,101 @@ export function ChatPage() {
   const [remoteMuted, setRemoteMuted] = useState(false);
   const [remoteCameraOff, setRemoteCameraOff] = useState(false);
 
-  // ── Ringtones ─────────────────────────────────────────────────────────────
-  const ringtoneRef = useRef<HTMLAudioElement | null>(null);
-  const ringbackRef = useRef<HTMLAudioElement | null>(null);
+  // ── Ringtones (Web Audio API for zero-latency & hiding from notification bar) ──
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const ringtoneBufferRef = useRef<AudioBuffer | null>(null);
+  const ringbackBufferRef = useRef<AudioBuffer | null>(null);
+  const activeSourceRef = useRef<AudioBufferSourceNode | null>(null);
   const ringTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [audioPrimed, setAudioPrimed] = useState(false);
 
+  // Initialize Audio Context & Load Buffers (SSR-safe)
   useEffect(() => {
-    // Standard ringback for caller (American)
-    ringbackRef.current = new Audio('/ringtone.wav');
-    ringbackRef.current.loop = true;
-    // Distict melodic tone for receiver
-    ringtoneRef.current = new Audio('/ringtone_receiver.mp3');
-    ringtoneRef.current.loop = true;
+    if (typeof window === 'undefined') return;
+
+    const initAudio = async () => {
+      try {
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        const ctx = new AudioContextClass();
+        audioCtxRef.current = ctx;
+
+        // Pre-fetch and decode both ringtones into memory
+        const [rbRes, rtRes] = await Promise.all([
+          fetch('/ringtone.wav'),
+          fetch('/ringtone_receiver.wav')
+        ]);
+
+        const [rbData, rtData] = await Promise.all([
+          rbRes.arrayBuffer(),
+          rtRes.arrayBuffer()
+        ]);
+
+        ringbackBufferRef.current = await ctx.decodeAudioData(rbData);
+        ringtoneBufferRef.current = await ctx.decodeAudioData(rtData);
+
+        console.log('[Audio] Production-grade WAV buffers loaded');
+      } catch (err) {
+        console.warn('[Audio] Failed to initialize Web Audio:', err);
+      }
+    };
+
+    initAudio();
+
+    // Mobile "Unlock" Listener: resumes AudioContext on first touch
+    const unlock = () => {
+      if (audioCtxRef.current?.state === 'suspended') {
+        audioCtxRef.current.resume();
+      }
+      setAudioPrimed(true);
+      window.removeEventListener('click', unlock);
+      window.removeEventListener('touchstart', unlock);
+      console.log('[Audio] Hardware unlocked');
+    };
+
+    window.addEventListener('click', unlock);
+    window.addEventListener('touchstart', unlock);
 
     return () => {
-      ringbackRef.current?.pause();
-      ringtoneRef.current?.pause();
+      audioCtxRef.current?.close();
       if (ringTimeoutRef.current) clearTimeout(ringTimeoutRef.current);
+      window.removeEventListener('click', unlock);
+      window.removeEventListener('touchstart', unlock);
     };
   }, []);
 
   const stopRinging = useCallback(() => {
-    ringtoneRef.current?.pause();
-    if (ringtoneRef.current) ringtoneRef.current.currentTime = 0;
-    ringbackRef.current?.pause();
-    if (ringbackRef.current) ringbackRef.current.currentTime = 0;
+    if (activeSourceRef.current) {
+      try { activeSourceRef.current.stop(); } catch (e) { }
+      activeSourceRef.current = null;
+    }
     if (ringTimeoutRef.current) {
       clearTimeout(ringTimeoutRef.current);
       ringTimeoutRef.current = null;
     }
+    // Note: AudioContext sounds do not need MediaSession suppression 
+    // because they don't trigger the media controller by default.
   }, []);
+
+  const startRinging = useCallback((isIncoming: boolean) => {
+    const ctx = audioCtxRef.current;
+    const buffer = isIncoming ? ringtoneBufferRef.current : ringbackBufferRef.current;
+
+    if (!ctx || !buffer) return;
+
+    // Stop any existing sound first
+    stopRinging();
+
+    // Re-check state (for mobile lock-screen edge cases)
+    if (ctx.state === 'suspended') ctx.resume();
+
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.loop = true;
+    source.connect(ctx.destination);
+
+    source.start(0);
+    activeSourceRef.current = source;
+  }, [stopRinging]);
 
   // ── Always-fresh refs (stale-closure safe for WS handlers) ───────────────
   const activeThreadRef = useRef<ConversationThread | null>(null);
@@ -214,7 +279,7 @@ export function ChatPage() {
           });
 
           // Play receiving ringtone
-          ringtoneRef.current?.play().catch(e => console.warn('[Audio] Autoplay blocked:', e));
+          startRinging(true);
 
           // Reply with ringing signal
           sendMessage({ type: 'call_ringing', recipient_id: data.sender_id, channel_name: data.channel_name });
@@ -222,7 +287,7 @@ export function ChatPage() {
         } else if (data.type === 'call_ringing') {
           if (outgoingCallRef.current && outgoingCallRef.current.channelName === data.channel_name) {
             setOutgoingStatus('Ringing...');
-            ringbackRef.current?.play().catch(e => console.warn('[Audio] Autoplay blocked:', e));
+            startRinging(false);
           }
 
         } else if (data.type === 'call_busy') {
