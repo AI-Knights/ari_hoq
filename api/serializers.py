@@ -30,7 +30,7 @@ class MinimalUserSerializer(serializers.ModelSerializer):
         import datetime
         if not obj.last_active:
             return 'offline'
-        if timezone.now() - obj.last_active < datetime.timedelta(minutes=15):
+        if timezone.now() - obj.last_active < datetime.timedelta(minutes=3):
             return 'online'
         return 'offline'
 
