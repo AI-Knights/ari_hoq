@@ -171,6 +171,14 @@ export function ChatPage() {
     activeSourceRef.current = source;
   }, [stopRinging]);
 
+  // ── Online Status Helper ──────────────────────────────────────────────────
+  const getStatus = useCallback((partner: { id: string | number; status: string }) => {
+    const isOnline = onlineUsers[partner.id];
+    if (isOnline === true) return 'online';
+    if (isOnline === false) return 'offline';
+    return partner.status ?? 'offline';
+  }, [onlineUsers]);
+
   // ── Always-fresh refs (stale-closure safe for WS handlers) ───────────────
   const activeThreadRef = useRef<ConversationThread | null>(null);
   const threadsRef = useRef<ConversationThread[]>([]);
@@ -653,8 +661,7 @@ export function ChatPage() {
               ) : threads.length === 0 ? (
                 <p className="p-6 text-center text-sm text-theme-text-secondary">No conversations yet.</p>
               ) : threads.map(thread => {
-                const isOnline = onlineUsers[thread.partner.id];
-                const status = isOnline === true ? 'online' : isOnline === false ? 'offline' : thread.partner.status ?? 'offline';
+                const status = getStatus(thread.partner);
                 const isFriend = friendIds.has(String(thread.partner.id));
                 return (
                   <button
@@ -693,7 +700,7 @@ export function ChatPage() {
                   id: String(activeThread.partner.id),
                   name: activeThread.partner.name || activeThread.partner.username || 'Unknown',
                   avatar: activeThread.partner.avatar || undefined,
-                  status: (onlineUsers[activeThread.partner.id] === true ? 'online' : 'offline') as any,
+                  status: getStatus(activeThread.partner) as any,
                 }}
                 existingMessages={messages}
                 onSendMessage={handleSendMessage}
