@@ -5,13 +5,13 @@ import { DashboardLayout } from '../components/layout/DashboardLayout';
 import { ChatInterface } from '../components/ChatInterface';
 import dynamic from 'next/dynamic';
 import { Avatar } from '../components/ui/Avatar';
-import { Search, Loader2, Video, PhoneOff } from 'lucide-react';
+import { Search, Loader2, Video, PhoneOff, MicOff, CameraOff } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import { usePresence } from '../contexts/PresenceContext';
 import { useRouter } from 'next/navigation';
 import { useWebSocket } from '../hooks/useWebSocket';
-import { prewarmPermissions } from '../lib/videoUtils';
+import { prewarmPermissions, clearPrewarmedTracks } from '../lib/videoUtils';
 
 // VideoCall uses browser APIs — SSR must be disabled
 const VideoCall = dynamic(
@@ -70,7 +70,41 @@ export function ChatPage() {
     channelName: string; callerId: string; callerName: string; callerAvatar?: string;
   } | null>(null);
   const [outgoingCall, setOutgoingCall] = useState<CallInfo | null>(null);
+  const [outgoingStatus, setOutgoingStatus] = useState<'Calling...' | 'Ringing...'>('Calling...');
   const [activeCall, setActiveCall] = useState<(CallInfo & { autoJoin?: boolean }) | null>(null);
+  const [remoteMuted, setRemoteMuted] = useState(false);
+  const [remoteCameraOff, setRemoteCameraOff] = useState(false);
+
+  // ── Ringtones ─────────────────────────────────────────────────────────────
+  const ringtoneRef = useRef<HTMLAudioElement | null>(null);
+  const ringbackRef = useRef<HTMLAudioElement | null>(null);
+  const ringTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    // Standard ringback for caller (American)
+    ringbackRef.current = new Audio('/ringtone.wav');
+    ringbackRef.current.loop = true;
+    // Distict melodic tone for receiver
+    ringtoneRef.current = new Audio('/ringtone_receiver.wav');
+    ringtoneRef.current.loop = true;
+
+    return () => {
+      ringbackRef.current?.pause();
+      ringtoneRef.current?.pause();
+      if (ringTimeoutRef.current) clearTimeout(ringTimeoutRef.current);
+    };
+  }, []);
+
+  const stopRinging = useCallback(() => {
+    ringtoneRef.current?.pause();
+    if (ringtoneRef.current) ringtoneRef.current.currentTime = 0;
+    ringbackRef.current?.pause();
+    if (ringbackRef.current) ringbackRef.current.currentTime = 0;
+    if (ringTimeoutRef.current) {
+      clearTimeout(ringTimeoutRef.current);
+      ringTimeoutRef.current = null;
+    }
+  }, []);
 
   // ── Always-fresh refs (stale-closure safe for WS handlers) ───────────────
   const activeThreadRef = useRef<ConversationThread | null>(null);
@@ -166,6 +200,12 @@ export function ChatPage() {
           }
 
         } else if (data.type === 'incoming_call') {
+          // If we are already busy, send busy signal
+          if (activeCall || incomingCall || outgoingCall) {
+            sendMessage({ type: 'call_busy', recipient_id: data.sender_id, channel_name: data.channel_name });
+            return;
+          }
+
           setIncomingCall({
             channelName: data.channel_name,
             callerId: String(data.sender_id),
@@ -173,21 +213,54 @@ export function ChatPage() {
             callerAvatar: data.caller_info?.avatar || undefined,
           });
 
+          // Play receiving ringtone
+          ringtoneRef.current?.play().catch(e => console.warn('[Audio] Autoplay blocked:', e));
+
+          // Reply with ringing signal
+          sendMessage({ type: 'call_ringing', recipient_id: data.sender_id, channel_name: data.channel_name });
+
+        } else if (data.type === 'call_ringing') {
+          if (outgoingCallRef.current && outgoingCallRef.current.channelName === data.channel_name) {
+            setOutgoingStatus('Ringing...');
+            ringbackRef.current?.play().catch(e => console.warn('[Audio] Autoplay blocked:', e));
+          }
+
+        } else if (data.type === 'call_busy') {
+          stopRinging();
+          setOutgoingCall(null);
+          alert(`${outgoingCallRef.current?.partnerName || 'User'} is busy on another call.`);
+
         } else if (data.type === 'call_accept') {
+          stopRinging();
           // Callee accepted — caller mounts VideoCall with autoJoin
           if (outgoingCallRef.current) {
             setActiveCall({ ...outgoingCallRef.current, autoJoin: true });
           }
           setOutgoingCall(null);
 
-        } else if (data.type === 'call_reject') {
+        } else if (data.type === 'call_reject' || data.type === 'call_rejected' || data.type === 'call_missed' || data.type === 'call_cancelled') {
+          stopRinging();
+          clearPrewarmedTracks();
           setOutgoingCall(null);
           setIncomingCall(null);
 
         } else if (data.type === 'call_end') {
+          stopRinging();
+          clearPrewarmedTracks();
           setActiveCall(null);
           setOutgoingCall(null);
           setIncomingCall(null);
+          setRemoteMuted(false);
+          setRemoteCameraOff(false);
+
+        } else if (data.type === 'user_muted') {
+          setRemoteMuted(true);
+        } else if (data.type === 'user_unmuted') {
+          setRemoteMuted(false);
+        } else if (data.type === 'camera_off') {
+          setRemoteCameraOff(true);
+        } else if (data.type === 'camera_on') {
+          setRemoteCameraOff(false);
 
         } else if (data.message) {
           const newMsg = { ...data.message, timestamp: new Date(data.message.timestamp || Date.now()) };
@@ -342,6 +415,19 @@ export function ChatPage() {
         partnerId: String(activeThread.partner.id),
       };
       setOutgoingCall(callInfo);
+      setOutgoingStatus('Calling...');
+
+      // 60-second missed call timeout
+      if (ringTimeoutRef.current) clearTimeout(ringTimeoutRef.current);
+      ringTimeoutRef.current = setTimeout(() => {
+        if (outgoingCallRef.current?.channelName === channel_name) {
+          stopRinging();
+          clearPrewarmedTracks();
+          setOutgoingCall(null);
+          api.video.end(channel_name, 'missed').catch(() => { });
+        }
+      }, 60000);
+
     } catch (err) {
       console.error('[ChatPage] Failed to initiate call:', err);
     }
@@ -354,6 +440,7 @@ export function ChatPage() {
       // Pre-warm permissions at the moment of acceptance (as requested)
       prewarmPermissions();
       await api.video.accept(incomingCall.channelName);
+      stopRinging();
       // Immediately set active call with autoJoin: true
       // This click (user gesture) allows join() to run immediately.
       setActiveCall({
@@ -377,6 +464,8 @@ export function ChatPage() {
 
   const handleEndCall = () => {
     const call = activeCall || outgoingCall;
+    stopRinging();
+    clearPrewarmedTracks();
     if (call && client?.readyState === WebSocket.OPEN) {
       sendMessage({ type: 'call_end', recipient_id: call.partnerId, channel_name: call.channelName });
     }
@@ -386,6 +475,8 @@ export function ChatPage() {
 
   const handleRejectCall = () => {
     if (!incomingCall) return;
+    stopRinging();
+    clearPrewarmedTracks();
     sendMessage({ type: 'call_reject', recipient_id: incomingCall.callerId, channel_name: incomingCall.channelName });
     setIncomingCall(null);
   };
@@ -418,7 +509,7 @@ export function ChatPage() {
               </div>
             </div>
             <h3 className="text-2xl font-serif text-white font-bold mb-1">{outgoingCall.partnerName}</h3>
-            <p className="text-gray-400 text-sm mb-8 animate-pulse">Calling…</p>
+            <p className="text-gray-400 text-sm mb-8 animate-pulse">{outgoingStatus}</p>
             <button onClick={handleEndCall} className="w-16 h-16 bg-red-600 hover:bg-red-700 active:scale-95 rounded-full flex items-center justify-center mx-auto text-white">
               <PhoneOff className="w-7 h-7" />
             </button>
@@ -434,6 +525,18 @@ export function ChatPage() {
           partnerAvatar={activeCall.partnerAvatar}
           autoJoin={activeCall.autoJoin}
           onCallEnd={handleEndCall}
+          remoteMutedFromWs={remoteMuted}
+          remoteCameraOffFromWs={remoteCameraOff}
+          onMuteToggle={(isMuted) => {
+            if (client?.readyState === WebSocket.OPEN) {
+              sendMessage({ type: isMuted ? 'user_muted' : 'user_unmuted', recipient_id: activeCall.partnerId, channel_name: activeCall.channelName });
+            }
+          }}
+          onCameraToggle={(isOff) => {
+            if (client?.readyState === WebSocket.OPEN) {
+              sendMessage({ type: isOff ? 'camera_off' : 'camera_on', recipient_id: activeCall.partnerId, channel_name: activeCall.channelName });
+            }
+          }}
         />
       )}
 

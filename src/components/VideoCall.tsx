@@ -6,6 +6,7 @@ import { useAgora } from '../hooks/useAgora';
 import { useAudioLevel } from '../hooks/useAudioLevel';
 import { api } from '../lib/api';
 import { ILocalVideoTrack, IRemoteVideoTrack } from 'agora-rtc-sdk-ng';
+import { clearPrewarmedTracks } from '../lib/videoUtils';
 
 interface VideoCallProps {
     channelName: string;
@@ -13,9 +14,16 @@ interface VideoCallProps {
     partnerName: string;
     partnerAvatar?: string;
     autoJoin?: boolean;
+    remoteMutedFromWs?: boolean;
+    remoteCameraOffFromWs?: boolean;
+    onMuteToggle?: (muted: boolean) => void;
+    onCameraToggle?: (cameraOff: boolean) => void;
 }
 
-export const VideoCall: React.FC<VideoCallProps> = ({ channelName, onCallEnd, partnerName, partnerAvatar, autoJoin }) => {
+export const VideoCall: React.FC<VideoCallProps> = ({
+    channelName, onCallEnd, partnerName, partnerAvatar, autoJoin,
+    remoteMutedFromWs, remoteCameraOffFromWs, onMuteToggle, onCameraToggle
+}) => {
     const [hasJoined, setHasJoined] = useState(autoJoin || false);
     const {
         localVideoTrack,
@@ -49,12 +57,27 @@ export const VideoCall: React.FC<VideoCallProps> = ({ channelName, onCallEnd, pa
 
     useEffect(() => {
         if (autoJoin) {
-            join(channelName);
+            handleJoin();
         }
         return () => {
             leave();
+            clearPrewarmedTracks();
         };
-    }, [channelName, autoJoin, join, leave]);
+    }, [channelName, autoJoin, leave]);
+
+    // ── 15-Second Connection Timeout ──
+    useEffect(() => {
+        if (!hasJoined) return;
+
+        const timeout = setTimeout(() => {
+            if (!isRemoteUserConnected && hasJoined) {
+                setError('Connection timed out. Please check your network or try again.');
+                setTimeout(() => handleEndCall(), 3000);
+            }
+        }, 15000);
+
+        return () => clearTimeout(timeout);
+    }, [hasJoined, isRemoteUserConnected]);
 
     const handleJoin = async () => {
         setHasJoined(true);
@@ -115,6 +138,16 @@ export const VideoCall: React.FC<VideoCallProps> = ({ channelName, onCallEnd, pa
         return 'text-gray-500';
     };
 
+    const handleToggleMute = () => {
+        toggleMute();
+        onMuteToggle?.(!isMuted);
+    };
+
+    const handleToggleCamera = () => {
+        toggleCamera();
+        onCameraToggle?.(!isCameraOff);
+    };
+
     return (
         <div className="fixed inset-0 bg-black z-[120] flex flex-col items-center justify-center overflow-hidden touch-none">
             {/* ── Error Banner & Permission Guide ── */}
@@ -152,21 +185,6 @@ export const VideoCall: React.FC<VideoCallProps> = ({ channelName, onCallEnd, pa
                 </div>
             ) : (
                 <>
-                    {/* Header / Remote User Info */}
-                    <div className={`absolute top-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center transition-all duration-300 ${remoteVolume > 0.05 ? 'scale-110' : 'scale-100'}`}>
-                        <div className={`text-white text-lg font-medium mb-1 px-4 py-1 rounded-full bg-black/40 backdrop-blur-md border transition-colors ${remoteVolume > 0.05 ? 'border-[#D4AF37] shadow-[0_0_15px_rgba(212,175,55,0.4)]' : 'border-white/10'}`}>
-                            {partnerName}
-                        </div>
-                        {isRemoteUserConnected && (
-                            <div className="flex items-center gap-1 bg-black/40 backdrop-blur-sm px-2 py-0.5 rounded-full border border-white/5 text-[10px]">
-                                <Wifi className={`w-3 h-3 ${getQualityColor(remoteNetworkQuality)}`} />
-                                <span className="text-gray-400 capitalize">
-                                    {remoteNetworkQuality <= 2 ? 'Excellent' : remoteNetworkQuality === 3 ? 'Good' : 'Poor'}
-                                </span>
-                            </div>
-                        )}
-                    </div>
-
                     {/* Main Video Area (Remote) */}
                     <div className="relative w-full h-[calc(100vh-80px)] md:h-screen bg-[#050505]">
                         {!isRemoteUserConnected ? (
@@ -174,7 +192,7 @@ export const VideoCall: React.FC<VideoCallProps> = ({ channelName, onCallEnd, pa
                                 <div className="w-16 h-16 rounded-full border-4 border-[#D4AF37]/20 border-t-[#D4AF37] animate-spin" />
                                 <p className="text-[#D4AF37] text-sm font-medium tracking-wide animate-pulse">Connecting to {partnerName}...</p>
                             </div>
-                        ) : !isRemoteVideoEnabled ? (
+                        ) : !isRemoteVideoEnabled || remoteCameraOffFromWs ? (
                             <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#0a0a0a]">
                                 <div className="relative">
                                     <div
@@ -189,18 +207,43 @@ export const VideoCall: React.FC<VideoCallProps> = ({ channelName, onCallEnd, pa
                                                 {partnerName.charAt(0).toUpperCase()}
                                             </div>
                                         )}
-                                        <div className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-md p-2 rounded-full border border-white/10">
-                                            <CameraOff className="w-4 h-4 text-red-500" />
+                                    </div>
+                                    <div className="absolute bottom-1 right-1 md:bottom-2 md:right-2 flex gap-2 z-10">
+                                        <div className="bg-black/80 backdrop-blur-md p-2.5 rounded-full border border-white/10 shadow-lg">
+                                            <CameraOff className="w-4 h-4 md:w-5 md:h-5 text-red-500" />
                                         </div>
                                     </div>
                                 </div>
-                                <div className="mt-8 text-center">
-                                    <h3 className="text-white text-xl font-medium">{partnerName}</h3>
-                                    <p className="text-gray-500 text-sm">Camera is off</p>
+                                <div className="mt-8 text-center text-white z-10">
+                                    <h3 className="text-xl font-medium">{partnerName}</h3>
+                                    <p className="text-gray-500 text-sm">{remoteCameraOffFromWs ? 'Camera is off' : 'Video paused'}</p>
                                 </div>
                             </div>
                         ) : (
                             <div ref={remoteVideoRef} className="w-full h-full bg-black [&>div]:!bg-transparent [&>div>video]:!object-cover" />
+                        )}
+                    </div>
+
+                    {/* Header / Remote User Info - Rendered after video for Z-order visibility */}
+                    <div className={`absolute top-8 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center transition-all duration-300 ${remoteVolume > 0.05 ? 'scale-110' : 'scale-100'}`}>
+                        <div className={`text-white text-lg font-medium mb-1 px-4 py-1 rounded-full bg-black/40 backdrop-blur-md border transition-colors ${remoteVolume > 0.05 ? 'border-[#D4AF37] shadow-[0_0_15px_rgba(212,175,55,0.4)]' : 'border-white/10'}`}>
+                            {partnerName}
+                        </div>
+                        {isRemoteUserConnected && (
+                            <div className="flex items-center gap-2 bg-black/40 backdrop-blur-sm px-3 py-1 mt-1 rounded-full border border-white/5 text-xs shadow-lg">
+                                <div className="flex items-center gap-1">
+                                    <Wifi className={`w-3 h-3 ${getQualityColor(remoteNetworkQuality)}`} />
+                                    <span className="text-gray-300 capitalize">
+                                        {remoteNetworkQuality <= 2 ? 'Excellent' : remoteNetworkQuality === 3 ? 'Good' : 'Poor'}
+                                    </span>
+                                </div>
+                                {remoteMutedFromWs && (
+                                    <div className="flex items-center gap-1 pl-2 border-l border-white/20">
+                                        <MicOff className="w-3 h-3 text-red-500" />
+                                        <span className="text-red-500 font-medium">Muted</span>
+                                    </div>
+                                )}
+                            </div>
                         )}
                     </div>
 
@@ -233,7 +276,7 @@ export const VideoCall: React.FC<VideoCallProps> = ({ channelName, onCallEnd, pa
                     <div className="fixed bottom-0 left-0 right-0 h-[80px] px-4 pb-[env(safe-area-inset-bottom)] bg-black/60 backdrop-blur-2xl border-t border-white/5 z-50">
                         <div className="h-full max-w-md mx-auto flex items-center justify-evenly">
                             <button
-                                onClick={toggleMute}
+                                onClick={handleToggleMute}
                                 className={`p-4 rounded-full transition-all active:scale-90 ${isMuted ? 'bg-red-500 text-white shadow-lg shadow-red-500/20' : 'bg-white/5 text-white hover:bg-white/10 border border-white/10'}`}
                             >
                                 {isMuted ? <MicOff className="w-5 h-5 md:w-6 md:h-6" /> : <Mic className="w-5 h-5 md:w-6 md:h-6" />}
@@ -247,7 +290,7 @@ export const VideoCall: React.FC<VideoCallProps> = ({ channelName, onCallEnd, pa
                             </button>
 
                             <button
-                                onClick={toggleCamera}
+                                onClick={handleToggleCamera}
                                 className={`p-4 rounded-full transition-all active:scale-90 ${isCameraOff ? 'bg-red-500 text-white shadow-lg shadow-red-500/20' : 'bg-white/5 text-white hover:bg-white/10 border border-white/10'}`}
                             >
                                 {isCameraOff ? <VideoOff className="w-5 h-5 md:w-6 md:h-6" /> : <Video className="w-5 h-5 md:w-6 md:h-6" />}

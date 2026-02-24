@@ -201,10 +201,10 @@ export const api = {
     },
     video: {
         initiate: (receiverId: string | number) =>
-            apiFetch('/video/call/initiate/', { method: 'POST', body: JSON.stringify({ receiver_id: receiverId }) }),
+            apiFetch<{ channel_name: string }>('/video/call/initiate/', { method: 'POST', body: JSON.stringify({ receiver_id: receiverId }) }),
         accept: (channelName: string) =>
             apiFetch('/video/call/accept/', { method: 'POST', body: JSON.stringify({ channel_name: channelName }) }),
-        end: (channelName: string) =>
-            apiFetch('/video/call/end/', { method: 'POST', body: JSON.stringify({ channel_name: channelName }) }),
+        end: (channelName: string, reason: string = 'ended') =>
+            apiFetch('/video/call/end/', { method: 'POST', body: JSON.stringify({ channel_name: channelName, reason }) }),
     }
 };
