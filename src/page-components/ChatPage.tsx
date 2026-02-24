@@ -85,7 +85,7 @@ export function ChatPage() {
     ringbackRef.current = new Audio('/ringtone.wav');
     ringbackRef.current.loop = true;
     // Distict melodic tone for receiver
-    ringtoneRef.current = new Audio('/ringtone_receiver.wav');
+    ringtoneRef.current = new Audio('/ringtone_receiver.mp3');
     ringtoneRef.current.loop = true;
 
     return () => {
