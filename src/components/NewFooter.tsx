@@ -3,9 +3,12 @@
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useTheme } from '../contexts/ThemeContext';
 import { Facebook, Twitter, Instagram, Linkedin, Mail, Phone, MapPin, Youtube } from 'lucide-react';
 
 export function NewFooter() {
+    const { theme } = useTheme();
+    
     return (
         <>
             {/* Donation Section */}
@@ -56,7 +59,7 @@ export function NewFooter() {
                         <div className="flex flex-col items-center sm:items-start col-span-1 md:col-span-1">
                             <Link href="/" className="block mb-6 group w-full max-w-[200px] sm:max-w-[220px] md:max-w-[240px] lg:max-w-[280px]">
                                 <Image
-                                    src="/logo.png"
+                                    src={theme === 'light' ? '/logo-dark.png' : '/logo.png'}
                                     alt="QuranPartners Logo"
                                     width={280}
                                     height={280}

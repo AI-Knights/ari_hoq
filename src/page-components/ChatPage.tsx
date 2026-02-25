@@ -12,6 +12,7 @@ import { useUserStatus } from '../hooks/useUserStatus';
 import { useRouter } from 'next/navigation';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { prewarmPermissions, clearPrewarmedTracks } from '../lib/videoUtils';
+import { notifyMessagesRead } from '../hooks/useUnreadMessages';
 
 // VideoCall uses browser APIs — SSR must be disabled
 const VideoCall = dynamic(
@@ -374,7 +375,8 @@ export function ChatPage() {
           setThreads(prev => {
             const exists = prev.some(t => String(t.partner.id) === msgPartnerId);
             if (!exists) { loadThreads(); return prev; }
-            return prev.map(t => String(t.partner.id) === msgPartnerId ? {
+            
+            const updatedThreads = prev.map(t => String(t.partner.id) === msgPartnerId ? {
               ...t,
               last_message: newMsg.content,
               last_message_sender_id: senderStr,
@@ -382,6 +384,14 @@ export function ChatPage() {
               unread: senderStr === String(user?.id) ? t.unread
                 : (activeThreadRef.current && String(activeThreadRef.current.partner.id) === msgPartnerId ? 0 : t.unread + 1),
             } : t);
+            
+            // If unread count increased, notify sidebar
+            if (senderStr !== String(user?.id) && 
+                !(activeThreadRef.current && String(activeThreadRef.current.partner.id) === msgPartnerId)) {
+              notifyMessagesRead();
+            }
+            
+            return updatedThreads;
           });
         }
       } catch (err) {
@@ -419,6 +429,9 @@ export function ChatPage() {
       setMessages(prev => prev.map(m =>
         ids.includes(String(m.id)) ? { ...m, is_read: true } : m
       ));
+      
+      // Notify that messages have been read
+      notifyMessagesRead();
     }
   }, [messages, activeThread, user, client, sendMessage]);
 
@@ -710,7 +723,11 @@ export function ChatPage() {
                     key={thread.partner.id}
                     onClick={() => {
                       setActiveThread(thread);
-                      if (thread.unread > 0) setThreads(prev => prev.map(t => t.partner.id === thread.partner.id ? { ...t, unread: 0 } : t));
+                      if (thread.unread > 0) {
+                        setThreads(prev => prev.map(t => t.partner.id === thread.partner.id ? { ...t, unread: 0 } : t));
+                        // Notify sidebar to update unread indicator
+                        notifyMessagesRead();
+                      }
                     }}
                     className={`w-full p-4 flex items-start gap-3 hover:bg-theme-bg-hover transition-colors text-left border-b border-theme-border ${activeThread?.partner.id === thread.partner.id ? 'bg-theme-bg-hover border-l-2 border-l-[#D4AF37]' : ''} ${!isFriend ? 'opacity-60' : ''}`}
                   >

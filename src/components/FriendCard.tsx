@@ -48,7 +48,7 @@ export function FriendCard({
           size="lg" />
 
         <div className="ml-4">
-          <h3 className="font-bold text-theme-text text-lg hover:underline">{user.name || (user as any).username}</h3>
+          <h3 className="font-bold text-theme-text text-lg hover:underline">{user.name || (user as any).username || 'Unknown'}</h3>
           <p className="text-sm text-[#D4AF37]">{user.level}</p>
         </div>
       </div>

@@ -22,10 +22,14 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { Avatar } from '../ui/Avatar';
 import { ThemeToggle } from '../ThemeToggle';
+import { useUnreadMessages } from '../../hooks/useUnreadMessages';
+import { useTheme } from '../../contexts/ThemeContext';
 
 export function Sidebar() {
   const { user, logout } = useAuth();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const { hasUnread } = useUnreadMessages();
+  const { theme } = useTheme();
   const router = useRouter();
   const pathname = usePathname();
   const links = [
@@ -83,7 +87,7 @@ export function Sidebar() {
           className="flex items-center gap-3 w-full group">
           <div className="relative h-10 w-28 xs:h-12 xs:w-32 sm:h-14 sm:w-36 md:h-16 md:w-44">
             <Image
-              src="/logo.png"
+              src={theme === 'light' ? '/logo-dark.png' : '/logo.png'}
               alt="QuranPartners Logo"
               fill
               className="object-contain"
@@ -105,6 +109,9 @@ export function Sidebar() {
 
             <link.icon className="w-5 h-5 mr-3" />
             {link.label}
+            {link.to === '/chat' && hasUnread && (
+              <span className="ml-auto w-2 h-2 bg-[#D4AF37] rounded-full animate-pulse" />
+            )}
           </Link>
         )}
 
@@ -166,7 +173,7 @@ export function Sidebar() {
         <Link href="/dashboard" className="flex items-center">
           <div className="relative h-10 w-28">
             <Image
-              src="/logo.png"
+              src={theme === 'light' ? '/logo-dark.png' : '/logo.png'}
               alt="QuranPartners Logo"
               fill
               className="object-contain"

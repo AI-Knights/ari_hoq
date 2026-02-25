@@ -191,9 +191,9 @@ export function FriendsPage() {
               className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${activeTab === 'requests' ? 'bg-[#D4AF37] text-[#0A1A3A]' : 'text-theme-text-secondary hover:text-theme-text'}`}
             >
               Requests
-              {(requests.length > 0 || sentRequests.length > 0) && (
+              {requests.length > 0 && (
                 <span className={`text-xs px-2 py-0.5 rounded-full ${activeTab === 'requests' ? 'bg-[#0A1A3A] text-[#D4AF37]' : 'bg-theme-bg-hover text-theme-text'}`}>
-                  {requests.length + sentRequests.length}
+                  {requests.length}
                 </span>
               )}
             </button>

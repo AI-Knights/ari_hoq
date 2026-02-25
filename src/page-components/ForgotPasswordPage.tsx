@@ -1,18 +1,27 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Mail, Lock, ArrowRight, ArrowLeft, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import { api } from '../lib/api';
+import { useAuth } from '../contexts/AuthContext';
 
 type Step = 'email' | 'verify' | 'success';
 
 export function ForgotPasswordPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [step, setStep] = useState<Step>('email');
+  
+  // Redirect authenticated users to dashboard
+  useEffect(() => {
+    if (user) {
+      router.push('/dashboard');
+    }
+  }, [user, router]);
   const [email, setEmail] = useState('');
   const [resetToken, setResetToken] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);

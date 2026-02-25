@@ -11,12 +11,19 @@ import { Mail, Lock, ArrowRight, RefreshCw, ShieldCheck, Eye, EyeOff } from 'luc
 type Step = 'login' | 'signup' | 'verify';
 
 export function AuthPage() {
-  const { login, register, verifyEmail, resendCode } = useAuth();
+  const { login, register, verifyEmail, resendCode, user } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const [step, setStep] = useState<Step>('login');
   const [pendingEmail, setPendingEmail] = useState('');
+
+  // Redirect authenticated users to dashboard
+  useEffect(() => {
+    if (user) {
+      router.push('/dashboard');
+    }
+  }, [user, router]);
 
   // Start on signup tab if ?tab=signup is in the URL
   useEffect(() => {

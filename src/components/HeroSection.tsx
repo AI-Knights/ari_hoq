@@ -76,19 +76,16 @@ export function HeroSection() {
 
           <div className="flex items-center space-x-4 pt-8 text-sm text-theme-text-secondary">
             <div className="flex -space-x-2">
-              {[1, 2, 3, 4].map((i) =>
+              {['A', 'M', 'F', 'I', 'O'].map((initial, i) => (
                 <div
                   key={i}
-                  className="w-8 h-8 rounded-full bg-theme-subtle border-2 flex items-center justify-center text-xs overflow-hidden"
+                  className="rounded-full border-2 overflow-hidden"
                   style={{
                     borderColor: 'var(--theme-bg)'
                   }}>
-                  <Avatar
-                    fallback={['A', 'M', 'F', 'S'][i - 1]}
-                    size="sm"
-                  />
+                  <Avatar fallback={initial} size="sm" />
                 </div>
-              )}
+              ))}
             </div>
             <p>Join 10,000+ memorizers today</p>
           </div>

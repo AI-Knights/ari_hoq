@@ -18,9 +18,11 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { Avatar } from '../ui/Avatar';
 import { ThemeToggle } from '../ThemeToggle';
+import { useTheme } from '../../contexts/ThemeContext';
 
 export function AdminSidebar() {
     const { user, logout } = useAuth();
+    const { theme } = useTheme();
     const [isMobileOpen, setIsMobileOpen] = useState(false);
     const router = useRouter();
     const pathname = usePathname();
@@ -47,7 +49,7 @@ export function AdminSidebar() {
                 <button onClick={() => router.push('/admin')} className="flex items-center gap-3 w-full group">
                     <div className="relative h-10 w-28 xs:h-12 xs:w-32 sm:h-14 sm:w-36 md:h-16 md:w-44">
                         <Image
-                            src="/logo.png"
+                            src={theme === 'light' ? '/logo-dark.png' : '/logo.png'}
                             alt="QuranPartners Logo"
                             fill
                             className="object-contain"
@@ -127,7 +129,7 @@ export function AdminSidebar() {
             <div className="lg:hidden fixed top-0 left-0 right-0 h-16 border-b border-theme-border z-40 px-4 flex items-center justify-between" style={{ backgroundColor: 'var(--theme-bg)' }}>
                 <button onClick={() => router.push('/admin')} className="flex items-center gap-2">
                     <div className="relative h-8 w-24">
-                        <Image src="/logo.png" alt="QuranPartners" fill className="object-contain" priority />
+                        <Image src={theme === 'light' ? '/logo-dark.png' : '/logo.png'} alt="QuranPartners" fill className="object-contain" priority />
                     </div>
                     <span className="text-xs font-bold text-[#D4AF37] uppercase">Admin</span>
                 </button>

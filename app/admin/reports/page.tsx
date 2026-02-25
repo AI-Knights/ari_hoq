@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Card } from '../../../src/components/ui/Card';
 import { Button } from '../../../src/components/ui/Button';
 import { Badge } from '../../../src/components/ui/Badge';
 import { Avatar } from '../../../src/components/ui/Avatar';
-import { Loader2, AlertTriangle, ArrowRight, Calendar, Flag, Shield } from 'lucide-react';
+import { Loader2, AlertTriangle, ArrowRight, Calendar, Flag, Shield, Trash2 } from 'lucide-react';
 import { api } from '../../../src/lib/api';
 
 interface ReportRecord {
@@ -23,6 +24,13 @@ export default function AdminReportsPage() {
     const [reports, setReports] = useState<ReportRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [resolvingId, setResolvingId] = useState<string | null>(null);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     const loadData = useCallback(async () => {
         setIsLoading(true);
@@ -63,6 +71,19 @@ export default function AdminReportsPage() {
             console.error('Dismiss failed', err);
         } finally {
             setResolvingId(null);
+        }
+    };
+
+    const handleDeleteReport = async (reportId: string) => {
+        setDeletingId(reportId);
+        try {
+            await api.reports.delete(parseInt(reportId, 10));
+            setReports(prev => prev.filter(r => r.id !== reportId));
+            setDeleteConfirmId(null);
+        } catch (err) {
+            console.error('Delete failed', err);
+        } finally {
+            setDeletingId(null);
         }
     };
 
@@ -179,34 +200,81 @@ export default function AdminReportsPage() {
                                     </div>
 
                                     {/* Actions */}
-                                    {report.status === 'pending' && (
-                                        <div className="flex flex-col gap-2 lg:w-32">
-                                            <Button
-                                                size="sm"
-                                                variant="primary"
-                                                isLoading={resolvingId === report.id}
-                                                onClick={() => handleResolveReport(report.id)}
-                                                className="w-full"
-                                            >
-                                                Resolve
-                                            </Button>
-                                            <Button
-                                                size="sm"
-                                                variant="secondary"
-                                                isLoading={resolvingId === report.id}
-                                                onClick={() => handleDismissReport(report.id)}
-                                                className="w-full"
-                                            >
-                                                Dismiss
-                                            </Button>
-                                        </div>
-                                    )}
+                                    <div className="flex flex-col gap-2 lg:w-32">
+                                        {report.status === 'pending' && (
+                                            <>
+                                                <Button
+                                                    size="sm"
+                                                    variant="primary"
+                                                    isLoading={resolvingId === report.id}
+                                                    onClick={() => handleResolveReport(report.id)}
+                                                    className="w-full"
+                                                    disabled={deletingId === report.id}
+                                                >
+                                                    Resolve
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    variant="secondary"
+                                                    isLoading={resolvingId === report.id}
+                                                    onClick={() => handleDismissReport(report.id)}
+                                                    className="w-full"
+                                                    disabled={deletingId === report.id}
+                                                >
+                                                    Dismiss
+                                                </Button>
+                                            </>
+                                        )}
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            isLoading={deletingId === report.id}
+                                            onClick={() => setDeleteConfirmId(report.id)}
+                                            className="w-full text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                                            disabled={resolvingId === report.id}
+                                        >
+                                            <Trash2 className="w-4 h-4 mr-1" />
+                                            Delete
+                                        </Button>
+                                    </div>
                                 </div>
                             </Card>
                         ))}
                     </div>
                 )}
             </Card>
+
+            {/* Delete Confirmation Modal */}
+            {mounted && deleteConfirmId && createPortal(
+                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4">
+                    <Card className="w-full max-w-md p-6 space-y-4 relative z-[10000]">
+                        <h3 className="text-xl font-bold text-red-400">Delete Report</h3>
+                        <p className="text-theme-text-secondary">
+                            Are you sure you want to permanently delete this report? This action cannot be undone.
+                        </p>
+                        <div className="flex gap-3">
+                            <Button
+                                variant="secondary"
+                                className="flex-1"
+                                onClick={() => setDeleteConfirmId(null)}
+                                disabled={deletingId === deleteConfirmId}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                variant="primary"
+                                className="flex-1 bg-red-500 hover:bg-red-600 text-white focus:ring-red-500 whitespace-nowrap"
+                                onClick={() => handleDeleteReport(deleteConfirmId)}
+                                isLoading={deletingId === deleteConfirmId}
+                                disabled={deletingId === deleteConfirmId}
+                            >
+                                {deletingId === deleteConfirmId ? 'Deleting...' : 'Delete Report'}
+                            </Button>
+                        </div>
+                    </Card>
+                </div>,
+                document.body
+            )}
         </>
     );
 }

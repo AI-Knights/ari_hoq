@@ -16,10 +16,24 @@ import { SearchableSelect } from '../components/ui/SearchableSelect';
 import { LANGUAGES, TIMEZONES, LOCATIONS } from '../constants/languages-timezones';
 
 export function ProfilePage() {
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, logout } = useAuth();
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState('');
+  
+  // Password change modal
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  
+  // Delete account modal
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -53,6 +67,60 @@ export function ProfilePage() {
     primaryLanguage !== ((user as any)?.primary_language || '') ||
     gender !== ((user as any)?.gender || '') ||
     avatarFile !== null;
+
+  const handleChangePassword = async () => {
+    setPasswordError('');
+    
+    if (!oldPassword || !newPassword || !confirmPassword) {
+      setPasswordError('All fields are required.');
+      return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+      setPasswordError('New passwords do not match.');
+      return;
+    }
+    
+    if (newPassword.length < 8) {
+      setPasswordError('Password must be at least 8 characters.');
+      return;
+    }
+    
+    setIsChangingPassword(true);
+    try {
+      await api.auth.changePassword({ old_password: oldPassword, new_password: newPassword });
+      setShowPasswordModal(false);
+      setOldPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err: any) {
+      setPasswordError(err.message || 'Failed to change password.');
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+  
+  const handleDeleteAccount = async () => {
+    setDeleteError('');
+    
+    if (!deletePassword) {
+      setDeleteError('Password is required.');
+      return;
+    }
+    
+    setIsDeleting(true);
+    try {
+      await api.auth.deleteAccount({ password: deletePassword });
+      logout();
+      window.location.href = '/auth';
+    } catch (err: any) {
+      setDeleteError(err.message || 'Failed to delete account.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!hasChanges) return;
@@ -246,9 +314,16 @@ export function ProfilePage() {
             <Card className="p-6">
               <h3 className="text-lg font-bold text-theme-text mb-4">Account Settings</h3>
               <div className="space-y-3">
-                <Button variant="secondary" className="w-full justify-start">Change Password</Button>
-                <Button variant="secondary" className="w-full justify-start">Notification Settings</Button>
-                <Button variant="secondary" className="w-full justify-start text-red-400 border-red-500/30 hover:bg-red-500/10">
+                <Button 
+                  variant="secondary" 
+                  className="w-full justify-start"
+                  onClick={() => setShowPasswordModal(true)}>
+                  Change Password
+                </Button>
+                <Button 
+                  variant="secondary" 
+                  className="w-full justify-start text-red-400 border-red-500/30 hover:bg-red-500/10"
+                  onClick={() => setShowDeleteModal(true)}>
                   Delete Account
                 </Button>
               </div>
@@ -256,6 +331,105 @@ export function ProfilePage() {
           </div>
         </div>
       </div>
+      
+      {/* Change Password Modal */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md p-6 space-y-4">
+            <h3 className="text-xl font-bold text-theme-text">Change Password</h3>
+            <Input
+              type="password"
+              label="Current Password"
+              value={oldPassword}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setOldPassword(e.target.value)}
+              placeholder="Enter current password"
+            />
+            <Input
+              type="password"
+              label="New Password"
+              value={newPassword}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewPassword(e.target.value)}
+              placeholder="Enter new password"
+            />
+            <Input
+              type="password"
+              label="Confirm New Password"
+              value={confirmPassword}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConfirmPassword(e.target.value)}
+              placeholder="Confirm new password"
+            />
+            {passwordError && (
+              <p className="text-red-500 text-sm">{passwordError}</p>
+            )}
+            <div className="flex gap-3">
+              <Button
+                variant="ghost"
+                className="flex-1"
+                onClick={() => {
+                  setShowPasswordModal(false);
+                  setOldPassword('');
+                  setNewPassword('');
+                  setConfirmPassword('');
+                  setPasswordError('');
+                }}
+                disabled={isChangingPassword}>
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                className="flex-1 whitespace-nowrap"
+                onClick={handleChangePassword}
+                isLoading={isChangingPassword}
+                disabled={isChangingPassword}>
+                Change Password
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
+      
+      {/* Delete Account Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md p-6 space-y-4">
+            <h3 className="text-xl font-bold text-red-400">Delete Account</h3>
+            <p className="text-theme-text-secondary">
+              This action cannot be undone. All your data will be permanently deleted.
+            </p>
+            <Input
+              type="password"
+              label="Confirm Password"
+              value={deletePassword}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDeletePassword(e.target.value)}
+              placeholder="Enter your password"
+            />
+            {deleteError && (
+              <p className="text-red-500 text-sm">{deleteError}</p>
+            )}
+            <div className="flex gap-3">
+              <Button
+                variant="ghost"
+                className="flex-1"
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeletePassword('');
+                  setDeleteError('');
+                }}
+                disabled={isDeleting}>
+                Cancel
+              </Button>
+              <Button
+                variant="secondary"
+                className="flex-1 bg-red-500 hover:bg-red-600 text-white border-red-500 whitespace-nowrap"
+                onClick={handleDeleteAccount}
+                isLoading={isDeleting}
+                disabled={isDeleting}>
+                Delete Account
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
     </DashboardLayout>
   );
 }

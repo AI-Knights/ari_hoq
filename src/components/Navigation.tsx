@@ -8,9 +8,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 export function Navigation() {
   const { user } = useAuth();
+  const { theme } = useTheme();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const router = useRouter();
@@ -42,7 +44,7 @@ export function Navigation() {
         <Link href="/" className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
           <div className="relative h-10 w-28 xs:h-12 xs:w-32 sm:h-14 sm:w-36 md:h-16 md:w-44">
             <Image
-              src="/logo.png"
+              src={theme === 'light' ? '/logo-dark.png' : '/logo.png'}
               alt="QuranPartners Logo"
               fill
               className="object-contain"

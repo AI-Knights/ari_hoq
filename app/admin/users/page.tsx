@@ -9,6 +9,7 @@ import { Search, Ban, Eye, Loader2, CheckCircle, AlertTriangle, ShieldAlert } fr
 import { api } from '../../../src/lib/api';
 import { Avatar } from '../../../src/components/ui/Avatar';
 import { Modal } from '../../../src/components/ui/Modal';
+import { useUserStatus } from '../../../src/hooks/useUserStatus';
 
 interface AvailabilitySlot {
     day_of_week: string;
@@ -40,11 +41,21 @@ export default function AdminUsersPage() {
     const [users, setUsers] = useState<UserRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
+    const { getStatus } = useUserStatus();
 
     // Modal States
     const [selectedUser, setSelectedUser] = useState<UserRecord | null>(null);
     const [userToSuspend, setUserToSuspend] = useState<UserRecord | null>(null);
     const [isBanning, setIsBanning] = useState(false);
+
+    // Calculate status from last_active timestamp (3 minutes threshold)
+    const getUserStatus = (user: UserRecord): 'online' | 'offline' => {
+        if (!user.last_active) return 'offline';
+        const lastActive = new Date(user.last_active);
+        const now = new Date();
+        const diffMinutes = (now.getTime() - lastActive.getTime()) / (1000 * 60);
+        return diffMinutes <= 3 ? 'online' : 'offline';
+    };
 
     const loadData = useCallback(async () => {
         setIsLoading(true);
@@ -144,7 +155,6 @@ export default function AdminUsersPage() {
                                                         src={user.avatar} 
                                                         fallback={(user.full_name || user.username)?.charAt(0).toUpperCase() || 'U'} 
                                                         size="md"
-                                                        status={isSuspended(user) ? undefined : 'online'}
                                                     />
                                                     <div>
                                                         <p className="font-semibold text-theme-text group-hover:text-[#D4AF37] transition-colors">
@@ -166,12 +176,9 @@ export default function AdminUsersPage() {
                                                 </Badge>
                                             </td>
                                             <td className="py-4">
-                                                <div className="flex items-center gap-2">
-                                                    <div className={`w-2 h-2 rounded-full ${isSuspended(user) ? 'bg-red-500' : 'bg-green-500'} animate-pulse`} />
-                                                    <span className={`text-sm font-medium ${isSuspended(user) ? 'text-red-400' : 'text-green-400'}`}>
-                                                        {isSuspended(user) ? 'Suspended' : 'Active'}
-                                                    </span>
-                                                </div>
+                                                <span className={`text-sm font-medium ${isSuspended(user) ? 'text-red-400' : 'text-green-400'}`}>
+                                                    {isSuspended(user) ? 'Suspended' : 'Active'}
+                                                </span>
                                             </td>
                                             <td className="py-4 pr-4">
                                                 <div className="flex justify-end gap-1">

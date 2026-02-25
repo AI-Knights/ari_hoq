@@ -124,6 +124,8 @@ export const api = {
             apiFetch('/auth/profile/', { method: 'PUT', body: data instanceof FormData ? data : JSON.stringify(data) }),
         changePassword: (data: { old_password: string; new_password: string }) =>
             apiFetch('/auth/change-password/', { method: 'POST', body: JSON.stringify(data) }),
+        deleteAccount: (data: { password: string }) =>
+            apiFetch('/auth/delete-account/', { method: 'POST', body: JSON.stringify(data) }),
         refreshToken: (refresh: string) =>
             apiFetch('/auth/token/refresh/', { method: 'POST', body: JSON.stringify({ refresh }), skipAuth: true }),
         passwordResetRequest: (data: { email: string }) =>
@@ -200,6 +202,7 @@ export const api = {
         resolve: (id: number) => apiFetch(`/reports/${id}/resolve/`, { method: 'POST' }),
         dismiss: (id: number) => apiFetch(`/reports/${id}/dismiss/`, { method: 'POST' }),
         warn: (id: number) => apiFetch(`/reports/${id}/warn/`, { method: 'POST' }),
+        delete: (id: number) => apiFetch(`/reports/${id}/`, { method: 'DELETE' }),
     },
     admin: {
         stats: () => apiFetch('/admin/stats/'),

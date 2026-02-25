@@ -20,11 +20,12 @@ interface DashboardStats {
   online_count: number;
   recent_matches: Array<{
     id: number;
-    username: string;
+    name: string;
     email: string;
     avatar: string | null;
     level: string | null;
-    primary_language: string | null;
+    role: string;
+    status: string;
   }>;
 }
 
@@ -154,10 +155,10 @@ export function DashboardHome() {
                     key={match.id}
                     user={{
                       id: String(match.id),
-                      name: match.username,
+                      name: match.name,
                       level: match.level || 'Unknown',
-                      language: match.primary_language ? [match.primary_language] : [],
-                      status: 'online' as const,
+                      language: [],
+                      status: match.status as 'online' | 'offline' | 'busy',
                       avatar: match.avatar || undefined,
                     }}
                     variant="friend"

@@ -56,8 +56,11 @@ export default function AdminSettingsPage() {
                 formData.append('avatar', avatarFile);
             }
 
+            await api.auth.updateProfile(formData);
             await updateUser(formData);
             setSaved(true);
+            setAvatarFile(null);
+            setAvatarPreview(null);
             setTimeout(() => setSaved(false), 3000);
         } catch (error: any) {
             console.error('Failed to update profile:', error);
@@ -203,19 +206,6 @@ export default function AdminSettingsPage() {
                                 )}
                             </Button>
                         </div>
-                    </Card>
-                </div>
-
-                <div className="space-y-8">
-                    <Card className="p-8 flex flex-col items-center justify-center text-center border-dashed border-2 border-theme-border">
-                        <div className="bg-[#D4AF37]/10 p-4 rounded-full mb-6 relative">
-                            <div className="absolute inset-0 bg-[#D4AF37] blur-xl opacity-20 rounded-full"></div>
-                            <SettingsIcon className="w-12 h-12 text-[#D4AF37] relative z-10" />
-                        </div>
-                        <h2 className="text-xl font-bold text-theme-text mb-2">Global Settings</h2>
-                        <p className="text-theme-text-secondary text-sm">
-                            System configuration toggles and maintenance controls will appear here in the next release.
-                        </p>
                     </Card>
                 </div>
             </div>
