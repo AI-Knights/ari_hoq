@@ -120,37 +120,64 @@ export default function AdminUsersPage() {
                         </div>
 
                         <div className="overflow-x-auto">
-                            <table className="w-full text-left">
+                            <table className="w-full">
                                 <thead>
-                                    <tr className="border-b border-theme-border text-theme-text-secondary text-sm">
-                                        <th className="pb-4 pl-4">User</th>
-                                        <th className="pb-4 hidden sm:table-cell">Email</th>
-                                        <th className="pb-4">Role</th>
-                                        <th className="pb-4">Status</th>
-                                        <th className="pb-4 text-right pr-4">Actions</th>
+                                    <tr className="border-b border-theme-border">
+                                        <th className="pb-3 pl-4 text-left text-xs font-semibold text-theme-text-muted uppercase tracking-wider">User</th>
+                                        <th className="pb-3 text-left text-xs font-semibold text-theme-text-muted uppercase tracking-wider hidden md:table-cell">Email</th>
+                                        <th className="pb-3 text-left text-xs font-semibold text-theme-text-muted uppercase tracking-wider">Role</th>
+                                        <th className="pb-3 text-left text-xs font-semibold text-theme-text-muted uppercase tracking-wider">Status</th>
+                                        <th className="pb-3 pr-4 text-right text-xs font-semibold text-theme-text-muted uppercase tracking-wider">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-theme-border">
-                                    {users.map((user) => (
-                                        <tr key={user.id} className="text-sm hover:bg-theme-hover transition-colors">
+                                <tbody>
+                                    {users.map((user, index) => (
+                                        <tr 
+                                            key={user.id} 
+                                            className={`border-b border-theme-border last:border-0 hover:bg-theme-bg-hover transition-colors group ${
+                                                isSuspended(user) ? 'opacity-60' : ''
+                                            }`}
+                                        >
                                             <td className="py-4 pl-4">
                                                 <div className="flex items-center gap-3">
-                                                    <Avatar src={user.avatar} fallback={user.full_name || user.username} size="sm" />
-                                                    <span className="font-medium text-theme-text">{user.full_name || user.username}</span>
+                                                    <Avatar 
+                                                        src={user.avatar} 
+                                                        fallback={(user.full_name || user.username)?.charAt(0).toUpperCase() || 'U'} 
+                                                        size="md"
+                                                        status={isSuspended(user) ? undefined : 'online'}
+                                                    />
+                                                    <div>
+                                                        <p className="font-semibold text-theme-text group-hover:text-[#D4AF37] transition-colors">
+                                                            {user.full_name || user.username}
+                                                        </p>
+                                                        <p className="text-xs text-theme-text-muted md:hidden">{user.email}</p>
+                                                    </div>
                                                 </div>
                                             </td>
-                                            <td className="py-4 text-theme-text-secondary hidden sm:table-cell">{user.email}</td>
-                                            <td className="py-4 text-theme-text-secondary capitalize">{user.role}</td>
+                                            <td className="py-4 hidden md:table-cell">
+                                                <span className="text-sm text-theme-text-secondary">{user.email}</span>
+                                            </td>
                                             <td className="py-4">
-                                                <Badge variant={isSuspended(user) ? 'danger' : 'success'}>
-                                                    {isSuspended(user) ? 'Suspended' : 'Active'}
+                                                <Badge 
+                                                    variant={user.role === 'admin' ? 'default' : user.role === 'moderator' ? 'warning' : 'outline'}
+                                                    className="capitalize font-medium"
+                                                >
+                                                    {user.role}
                                                 </Badge>
                                             </td>
-                                            <td className="py-4 text-right pr-4">
-                                                <div className="flex justify-end gap-2">
+                                            <td className="py-4">
+                                                <div className="flex items-center gap-2">
+                                                    <div className={`w-2 h-2 rounded-full ${isSuspended(user) ? 'bg-red-500' : 'bg-green-500'} animate-pulse`} />
+                                                    <span className={`text-sm font-medium ${isSuspended(user) ? 'text-red-400' : 'text-green-400'}`}>
+                                                        {isSuspended(user) ? 'Suspended' : 'Active'}
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td className="py-4 pr-4">
+                                                <div className="flex justify-end gap-1">
                                                     <button
                                                         onClick={() => setSelectedUser(user)}
-                                                        className="p-1.5 text-theme-text-secondary hover:text-theme-text rounded hover:bg-theme-bg-hover transition-colors"
+                                                        className="p-2 text-theme-text-secondary hover:text-[#D4AF37] hover:bg-[#D4AF37]/10 rounded-lg transition-all"
                                                         title="View Details"
                                                     >
                                                         <Eye className="w-4 h-4" />
@@ -158,10 +185,11 @@ export default function AdminUsersPage() {
                                                     <button
                                                         onClick={() => setUserToSuspend(user)}
                                                         title={isSuspended(user) ? "Reactivate User" : "Suspend User"}
-                                                        className={`p-1.5 rounded transition-colors ${isSuspended(user)
-                                                            ? 'text-green-400 hover:text-green-300 hover:bg-green-500/10'
-                                                            : 'text-red-400 hover:text-red-300 hover:bg-red-500/10'
-                                                            }`}
+                                                        className={`p-2 rounded-lg transition-all ${
+                                                            isSuspended(user)
+                                                                ? 'text-green-400 hover:text-green-300 hover:bg-green-500/10'
+                                                                : 'text-red-400 hover:text-red-300 hover:bg-red-500/10'
+                                                        }`}
                                                     >
                                                         {isSuspended(user) ? <CheckCircle className="w-4 h-4" /> : <Ban className="w-4 h-4" />}
                                                     </button>
@@ -171,6 +199,13 @@ export default function AdminUsersPage() {
                                     ))}
                                 </tbody>
                             </table>
+                            
+                            {users.length === 0 && (
+                                <div className="text-center py-12">
+                                    <ShieldAlert className="w-12 h-12 text-theme-text-muted mx-auto mb-3" />
+                                    <p className="text-theme-text-secondary">No users found</p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}

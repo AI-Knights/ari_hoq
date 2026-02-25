@@ -20,16 +20,17 @@ import {
     UserPlus
 } from 'lucide-react';
 import { api } from '../lib/api';
-import { usePresence } from '../contexts/PresenceContext';
+import { useUserStatus } from '../hooks/useUserStatus';
 
 export function PublicProfilePage({ userId }: { userId: string }) {
     const router = useRouter();
-    const { onlineUsers } = usePresence();
+    const { getStatus } = useUserStatus();
 
     const [profile, setProfile] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [friendshipStatus, setFriendshipStatus] = useState<'none' | 'pending' | 'accepted'>('none');
+    const [friendshipStatus, setFriendshipStatus] = useState<'none' | 'pending' | 'accepted' | 'blocked'>('none');
+    const [isBlocked, setIsBlocked] = useState(false);
 
     const loadProfile = useCallback(async () => {
         setIsLoading(true);
@@ -37,6 +38,21 @@ export function PublicProfilePage({ userId }: { userId: string }) {
         try {
             const data = await api.users.get(userId);
             setProfile(data);
+
+            // Check if user is blocked
+            try {
+                const blockedData = await api.friends.listBlocked();
+                const blockedList = Array.isArray(blockedData) ? blockedData : (blockedData?.results ?? []);
+                const isUserBlocked = blockedList.some((u: any) => String(u.id) === userId);
+                setIsBlocked(isUserBlocked);
+                
+                if (isUserBlocked) {
+                    setFriendshipStatus('blocked');
+                    return; // Don't check friendship if blocked
+                }
+            } catch (blockErr) {
+                console.error('Failed to check block status', blockErr);
+            }
 
             // Check friendship status to show appropriate action buttons
             try {
@@ -101,13 +117,13 @@ export function PublicProfilePage({ userId }: { userId: string }) {
         );
     }
 
-    const isOnlineContext = onlineUsers[userId];
-    const currentStatus = isOnlineContext === true
-        ? 'online'
-        : (isOnlineContext === false ? 'offline' : profile.status || 'offline');
-
-    // Only show online status if they are accepted friends (privacy guard, mirrors backend)
-    const displayStatus = friendshipStatus === 'accepted' ? currentStatus : 'offline';
+    // Use unified status hook - only friends can see real status
+    const displayStatus = getStatus(
+        userId,
+        profile,
+        friendshipStatus === 'accepted',
+        isBlocked
+    );
 
     return (
         <DashboardLayout>
@@ -142,7 +158,11 @@ export function PublicProfilePage({ userId }: { userId: string }) {
                             </div>
 
                             <div className="flex gap-3 mt-4 sm:mt-0">
-                                {friendshipStatus === 'accepted' ? (
+                                {isBlocked ? (
+                                    <div className="px-4 py-2 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm font-medium">
+                                        You've blocked this user
+                                    </div>
+                                ) : friendshipStatus === 'accepted' ? (
                                     <Button
                                         variant="primary"
                                         leftIcon={<MessageCircle className="w-4 h-4" />}

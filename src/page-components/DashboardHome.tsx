@@ -188,12 +188,12 @@ export function DashboardHome() {
           </Card>
 
           {/* Daily Quote */}
-          <Card className="p-6 bg-gradient-to-br from-[#11224a] to-[#0A1A3A] border border-[#D4AF37]/20">
+          <Card className="p-6 bg-gradient-to-br from-theme-bg-elevated to-theme-bg border border-[#D4AF37]/20">
             <BookOpen className="w-8 h-8 text-[#D4AF37] mb-4" />
-            <blockquote className="text-lg font-serif text-white italic mb-4">
+            <blockquote className="text-lg font-serif text-theme-text italic mb-4">
               "The best of you are those who learn the Quran and teach it."
             </blockquote>
-            <p className="text-sm text-gray-400 text-right">
+            <p className="text-sm text-theme-text-muted text-right">
               — Prophet Muhammad (ﷺ)
             </p>
           </Card>

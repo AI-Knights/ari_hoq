@@ -5,10 +5,10 @@ import { DashboardLayout } from '../components/layout/DashboardLayout';
 import { ChatInterface } from '../components/ChatInterface';
 import dynamic from 'next/dynamic';
 import { Avatar } from '../components/ui/Avatar';
-import { Search, Loader2, Video, PhoneOff, MicOff, CameraOff } from 'lucide-react';
+import { Search, Loader2, Video, PhoneOff, MicOff, CameraOff, MessageSquare } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
-import { usePresence } from '../contexts/PresenceContext';
+import { useUserStatus } from '../hooks/useUserStatus';
 import { useRouter } from 'next/navigation';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { prewarmPermissions, clearPrewarmedTracks } from '../lib/videoUtils';
@@ -52,7 +52,7 @@ function makeChannelName(idA: string | number, idB: string | number): string {
 export function ChatPage() {
   const router = useRouter();
   const { user } = useAuth();
-  const { onlineUsers } = usePresence();
+  const { getStatus } = useUserStatus();
 
   // ── Chat state ────────────────────────────────────────────────────────────
   const [threads, setThreads] = useState<ConversationThread[]>([]);
@@ -63,7 +63,7 @@ export function ChatPage() {
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [friendIds, setFriendIds] = useState<Set<string>>(new Set());
-  const [notFriendTarget, setNotFriendTarget] = useState<string | null>(null);
+  const [blockedIds, setBlockedIds] = useState<Set<string>>(new Set());
 
   // ── Video calling state ───────────────────────────────────────────────────
   const [incomingCall, setIncomingCall] = useState<{
@@ -171,14 +171,6 @@ export function ChatPage() {
     activeSourceRef.current = source;
   }, [stopRinging]);
 
-  // ── Online Status Helper ──────────────────────────────────────────────────
-  const getStatus = useCallback((partner: { id: string | number; status: string }) => {
-    const isOnline = onlineUsers[partner.id];
-    if (isOnline === true) return 'online';
-    if (isOnline === false) return 'offline';
-    return partner.status ?? 'offline';
-  }, [onlineUsers]);
-
   // ── Always-fresh refs (stale-closure safe for WS handlers) ───────────────
   const activeThreadRef = useRef<ConversationThread | null>(null);
   const threadsRef = useRef<ConversationThread[]>([]);
@@ -192,18 +184,28 @@ export function ChatPage() {
   // ── Data loading ──────────────────────────────────────────────────────────
   const loadThreads = useCallback(async () => {
     try {
-      const [data, friendsData] = await Promise.all([api.messages.threads(), api.friends.list()]);
+      const [data, friendsData, blockedData] = await Promise.all([
+        api.messages.threads(),
+        api.friends.list(),
+        api.friends.listBlocked()
+      ]);
       setThreads(Array.isArray(data) ? data : []);
       const myId = user?.id;
       const friendships = Array.isArray(friendsData) ? friendsData : (friendsData?.results ?? []);
-      const ids = new Set<string>();
+      const fIds = new Set<string>();
       for (const f of friendships) {
         if (f.status === 'accepted') {
-          if (String(f.user1?.id) !== String(myId)) ids.add(String(f.user1?.id));
-          if (String(f.user2?.id) !== String(myId)) ids.add(String(f.user2?.id));
+          if (String(f.user1?.id) !== String(myId)) fIds.add(String(f.user1?.id));
+          if (String(f.user2?.id) !== String(myId)) fIds.add(String(f.user2?.id));
         }
       }
-      setFriendIds(ids);
+      setFriendIds(fIds);
+
+      const bIds = new Set<string>();
+      const blocks = Array.isArray(blockedData) ? blockedData : (blockedData?.results ?? []);
+      blocks.forEach((u: any) => bIds.add(String(u.id)));
+      setBlockedIds(bIds);
+
     } catch (err) {
       console.error('Failed to load threads', err);
     } finally {
@@ -424,15 +426,19 @@ export function ChatPage() {
     if (!threads.length || typeof window === 'undefined') return;
     const userId = new URLSearchParams(window.location.search).get('userId');
     if (!userId) return;
-    if (friendIds.size > 0 && !friendIds.has(userId)) { setNotFriendTarget(userId); return; }
-    setNotFriendTarget(null);
     const t = threads.find(t => String(t.partner.id) === userId);
     if (t && !activeThread) setActiveThread(t);
-  }, [threads, friendIds, activeThread]);
+  }, [threads, activeThread]);
 
   // ── Message handlers ──────────────────────────────────────────────────────
   const handleSendMessage = async (content: string) => {
     if (!activeThread || !user) return;
+
+    const partnerIdStr = String(activeThread.partner.id);
+    const isFriend = friendIds.has(partnerIdStr);
+    const isBlocked = blockedIds.has(partnerIdStr);
+
+    if (!isFriend || isBlocked) return;
     const tempId = `temp-${Date.now()}`;
     const optimistic = { id: tempId, content, sender: user, recipient: activeThread.partner, timestamp: new Date(), is_read: false };
     setMessages(prev => [...prev, optimistic]);
@@ -452,22 +458,56 @@ export function ChatPage() {
     }
   };
 
-  const handleDeleteChat = async () => {
+  const handleDeleteChat = async (forBoth: boolean) => {
     if (!activeThread) return;
-    await api.messages.deleteChat(activeThread.partner.id);
-    setActiveThread(null); loadThreads();
+    try {
+      await api.messages.deleteChat(activeThread.partner.id, forBoth);
+      setMessages([]);
+      loadThreads();
+      setActiveThread(null);
+    } catch (err) {
+      console.error('Failed to delete chat', err);
+    }
   };
 
   const handleUnfriend = async () => {
     if (!activeThread) return;
-    await api.friends.unfriend(activeThread.partner.id);
-    setActiveThread(null); loadThreads();
+    try {
+      await api.friends.unfriend(activeThread.partner.id);
+      loadThreads();
+    } catch (err) {
+      console.error('Unfriend failed', err);
+    }
   };
 
   const handleBlockUser = async () => {
     if (!activeThread) return;
-    await api.friends.block(activeThread.partner.id);
-    setActiveThread(null); loadThreads();
+    try {
+      await api.friends.block(activeThread.partner.id);
+      setActiveThread(null);
+      loadThreads();
+    } catch (err) {
+      console.error('Block failed', err);
+    }
+  };
+
+  const handleReportUser = async (data: { reason: string; reportType: string; severity: string; blockUser: boolean }) => {
+    if (!activeThread) return;
+    try {
+      await api.friends.reportAndBlock({
+        user_id: activeThread.partner.id,
+        reason: data.reason,
+        report_type: data.reportType,
+        severity: data.severity,
+        block_user: data.blockUser,
+      });
+      setActiveThread(null);
+      loadThreads();
+      // Could show a success toast here
+    } catch (err: any) {
+      console.error('Report failed', err);
+      alert(err.message || 'Failed to submit report. Please try again.');
+    }
   };
 
   // ── Call handlers ─────────────────────────────────────────────────────────
@@ -571,18 +611,18 @@ export function ChatPage() {
       {/* ── Outgoing call overlay (caller waiting) ──────────────── */}
       {outgoingCall && !activeCall && (
         <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#0d1b3e] border border-white/10 rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
-            <div className="relative w-28 h-28 mx-auto mb-6">
+          <div className="bg-theme-card border border-theme-border rounded-3xl p-6 sm:p-8 max-w-sm w-full text-center shadow-2xl">
+            <div className="relative w-24 h-24 sm:w-28 sm:h-28 mx-auto mb-6">
               <span className="absolute inset-0 rounded-full border-4 border-[#D4AF37]/40 animate-ping" />
-              <div className="relative w-full h-full rounded-full overflow-hidden border-4 border-[#D4AF37]/60 bg-[#1a2f5e]">
+              <div className="relative w-full h-full rounded-full overflow-hidden border-4 border-[#D4AF37]/60 bg-theme-bg-elevated">
                 {outgoingCall.partnerAvatar
                   ? <img src={outgoingCall.partnerAvatar} alt="" className="w-full h-full object-cover" />
-                  : <span className="absolute inset-0 flex items-center justify-center text-white text-4xl font-bold">{(outgoingCall.partnerName || '?').charAt(0).toUpperCase()}</span>
+                  : <span className="absolute inset-0 flex items-center justify-center text-theme-text text-3xl sm:text-4xl font-bold">{(outgoingCall.partnerName || '?').charAt(0).toUpperCase()}</span>
                 }
               </div>
             </div>
-            <h3 className="text-2xl font-serif text-white font-bold mb-1">{outgoingCall.partnerName}</h3>
-            <p className="text-gray-400 text-sm mb-8 animate-pulse">{outgoingStatus}</p>
+            <h3 className="text-xl sm:text-2xl font-serif text-theme-text font-bold mb-1">{outgoingCall.partnerName}</h3>
+            <p className="text-theme-text-muted text-sm mb-6 sm:mb-8 animate-pulse">{outgoingStatus}</p>
             <button onClick={handleEndCall} className="w-16 h-16 bg-red-600 hover:bg-red-700 active:scale-95 rounded-full flex items-center justify-center mx-auto text-white">
               <PhoneOff className="w-7 h-7" />
             </button>
@@ -616,26 +656,26 @@ export function ChatPage() {
       {/* ── Incoming call modal ─────────────────────────────────── */}
       {incomingCall && !activeCall && (
         <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#0d1b3e] border border-white/10 rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
-            <div className="relative w-28 h-28 mx-auto mb-6">
+          <div className="bg-theme-card border border-theme-border rounded-3xl p-6 sm:p-8 max-w-sm w-full text-center shadow-2xl">
+            <div className="relative w-24 h-24 sm:w-28 sm:h-28 mx-auto mb-6">
               <span className="absolute inset-0 rounded-full border-4 border-[#D4AF37]/40 animate-ping" />
-              <div className="relative w-full h-full rounded-full overflow-hidden border-4 border-[#D4AF37]/60 bg-[#1a2f5e]">
+              <div className="relative w-full h-full rounded-full overflow-hidden border-4 border-[#D4AF37]/60 bg-theme-bg-elevated">
                 {incomingCall.callerAvatar
                   ? <img src={incomingCall.callerAvatar} alt="" className="w-full h-full object-cover" />
-                  : <span className="absolute inset-0 flex items-center justify-center text-white text-4xl font-bold">{(incomingCall.callerName || '?').charAt(0).toUpperCase()}</span>
+                  : <span className="absolute inset-0 flex items-center justify-center text-theme-text text-3xl sm:text-4xl font-bold">{(incomingCall.callerName || '?').charAt(0).toUpperCase()}</span>
                 }
               </div>
             </div>
-            <h3 className="text-2xl font-serif text-white font-bold mb-1">{incomingCall.callerName}</h3>
-            <p className="text-[#D4AF37] text-sm mb-8 tracking-wide">Incoming video call…</p>
-            <div className="flex justify-center gap-8">
+            <h3 className="text-xl sm:text-2xl font-serif text-theme-text font-bold mb-1">{incomingCall.callerName}</h3>
+            <p className="text-[#D4AF37] text-sm mb-6 sm:mb-8 tracking-wide">Incoming video call…</p>
+            <div className="flex justify-center gap-6 sm:gap-8">
               <div className="flex flex-col items-center gap-2">
-                <button onClick={handleRejectCall} className="w-16 h-16 bg-red-600 hover:bg-red-700 active:scale-95 rounded-full flex items-center justify-center text-white"><PhoneOff className="w-7 h-7 rotate-135" /></button>
-                <span className="text-xs text-gray-400">Decline</span>
+                <button onClick={handleRejectCall} className="w-14 h-14 sm:w-16 sm:h-16 bg-red-600 hover:bg-red-700 active:scale-95 rounded-full flex items-center justify-center text-white"><PhoneOff className="w-6 h-6 sm:w-7 sm:h-7 rotate-135" /></button>
+                <span className="text-xs text-theme-text-muted">Decline</span>
               </div>
               <div className="flex flex-col items-center gap-2">
-                <button onClick={handleAcceptCall} className="w-16 h-16 bg-green-600 hover:bg-green-700 active:scale-95 rounded-full flex items-center justify-center text-white"><Video className="w-7 h-7" /></button>
-                <span className="text-xs text-gray-400">Accept</span>
+                <button onClick={handleAcceptCall} className="w-14 h-14 sm:w-16 sm:h-16 bg-green-600 hover:bg-green-700 active:scale-95 rounded-full flex items-center justify-center text-white"><Video className="w-6 h-6 sm:w-7 sm:h-7" /></button>
+                <span className="text-xs text-theme-text-muted">Accept</span>
               </div>
             </div>
           </div>
@@ -661,14 +701,15 @@ export function ChatPage() {
               ) : threads.length === 0 ? (
                 <p className="p-6 text-center text-sm text-theme-text-secondary">No conversations yet.</p>
               ) : threads.map(thread => {
-                const status = getStatus(thread.partner);
                 const isFriend = friendIds.has(String(thread.partner.id));
+                const isBlocked = blockedIds.has(String(thread.partner.id));
+                // Use unified status hook with friend and block awareness
+                const status = getStatus(thread.partner.id, thread.partner, isFriend, isBlocked);
                 return (
                   <button
                     key={thread.partner.id}
                     onClick={() => {
-                      if (!isFriend) { setNotFriendTarget(String(thread.partner.id)); return; }
-                      setNotFriendTarget(null); setActiveThread(thread);
+                      setActiveThread(thread);
                       if (thread.unread > 0) setThreads(prev => prev.map(t => t.partner.id === thread.partner.id ? { ...t, unread: 0 } : t));
                     }}
                     className={`w-full p-4 flex items-start gap-3 hover:bg-theme-bg-hover transition-colors text-left border-b border-theme-border ${activeThread?.partner.id === thread.partner.id ? 'bg-theme-bg-hover border-l-2 border-l-[#D4AF37]' : ''} ${!isFriend ? 'opacity-60' : ''}`}
@@ -700,8 +741,15 @@ export function ChatPage() {
                   id: String(activeThread.partner.id),
                   name: activeThread.partner.name || activeThread.partner.username || 'Unknown',
                   avatar: activeThread.partner.avatar || undefined,
-                  status: getStatus(activeThread.partner) as any,
+                  status: getStatus(
+                    activeThread.partner.id, 
+                    activeThread.partner, 
+                    friendIds.has(String(activeThread.partner.id)),
+                    blockedIds.has(String(activeThread.partner.id))
+                  ) as any,
                 }}
+                isFriend={friendIds.has(String(activeThread.partner.id))}
+                isBlocked={blockedIds.has(String(activeThread.partner.id))}
                 existingMessages={messages}
                 onSendMessage={handleSendMessage}
                 isLoadingMessages={isLoadingMessages}
@@ -710,6 +758,7 @@ export function ChatPage() {
                 onDeleteChat={handleDeleteChat}
                 onUnfriend={handleUnfriend}
                 onBlock={handleBlockUser}
+                onReport={handleReportUser}
                 onCallInitiate={handleInitiateCall}
                 onProfile={() => router.push(`/u/${activeThread.partner.id}`)}
                 onBack={() => {
@@ -717,17 +766,15 @@ export function ChatPage() {
                   if (typeof window !== 'undefined') window.history.replaceState({}, '', '/chat');
                 }}
               />
-            ) : notFriendTarget ? (
-              <div className="h-full flex items-center justify-center bg-theme-card border border-theme-border lg:rounded-2xl">
-                <div className="text-center px-6">
-                  <p className="text-xl font-serif font-bold mb-2">Not Friends</p>
-                  <p className="text-sm text-theme-text-secondary mb-4">Re-add them to chat.</p>
-                  <button onClick={() => router.push('/friends')} className="text-[#D4AF37] text-sm hover:underline">Go to Friends →</button>
-                </div>
-              </div>
             ) : (
-              <div className="h-full flex items-center justify-center bg-theme-card border border-theme-border lg:rounded-2xl">
-                <p className="text-xl font-serif font-bold text-theme-text-secondary">Select a conversation</p>
+              <div className="h-full flex items-center justify-center bg-theme-bg-subtle border border-theme-border lg:rounded-2xl backdrop-blur-sm">
+                <div className="text-center px-6">
+                  <div className="w-16 h-16 bg-[#D4AF37]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <MessageSquare className="w-8 h-8 text-[#D4AF37]" />
+                  </div>
+                  <h3 className="text-xl font-serif font-bold text-theme-text mb-2">Your Conversations</h3>
+                  <p className="text-theme-text-secondary max-w-xs mx-auto">Select a friend from the list to start a conversation or continue where you left off.</p>
+                </div>
               </div>
             )}
           </div>

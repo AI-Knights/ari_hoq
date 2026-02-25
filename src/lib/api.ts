@@ -126,6 +126,10 @@ export const api = {
             apiFetch('/auth/change-password/', { method: 'POST', body: JSON.stringify(data) }),
         refreshToken: (refresh: string) =>
             apiFetch('/auth/token/refresh/', { method: 'POST', body: JSON.stringify({ refresh }), skipAuth: true }),
+        passwordResetRequest: (data: { email: string }) =>
+            apiFetch<{ reset_token: string }>('/auth/password-reset/', { method: 'POST', body: JSON.stringify(data), skipAuth: true }),
+        passwordResetConfirm: (data: { reset_token: string; otp: string; new_password: string }) =>
+            apiFetch('/auth/password-reset/confirm/', { method: 'POST', body: JSON.stringify(data), skipAuth: true }),
     },
     dashboard: { stats: () => apiFetch('/dashboard/stats/') },
     availability: {
@@ -136,6 +140,8 @@ export const api = {
     match: {
         find: (data: { level: string; language: string; timezone: string; goals: string }) =>
             apiFetch('/match/', { method: 'POST', body: JSON.stringify(data) }),
+        skip: (userId: string | number) =>
+            apiFetch('/match/skip/', { method: 'POST', body: JSON.stringify({ user_id: userId }) }),
     },
     hifz: {
         list: () => apiFetch('/hifz/'),
@@ -154,6 +160,14 @@ export const api = {
             apiFetch('/friends/unfriend/', { method: 'POST', body: JSON.stringify({ user_id }) }),
         block: (user_id: string | number) =>
             apiFetch('/friends/block/', { method: 'POST', body: JSON.stringify({ user_id }) }),
+        reportAndBlock: (data: { 
+            user_id: string | number; 
+            reason: string; 
+            report_type: string; 
+            severity: string; 
+            block_user: boolean 
+        }) =>
+            apiFetch('/friends/report_and_block/', { method: 'POST', body: JSON.stringify(data) }),
         unblock: (user_id: string | number) =>
             apiFetch('/friends/unblock/', { method: 'POST', body: JSON.stringify({ user_id }) }),
         listBlocked: () => apiFetch('/friends/list_blocked/'),
@@ -168,8 +182,8 @@ export const api = {
             apiFetch(`/messages/conversation/?user_id=${userId}&limit=${limit}&offset=${offset}`),
         send: (data: { recipient_id: string | number; content: string }) =>
             apiFetch('/messages/', { method: 'POST', body: JSON.stringify(data) }),
-        deleteChat: (user_id: string | number) =>
-            apiFetch('/messages/delete_chat/', { method: 'POST', body: JSON.stringify({ user_id }) }),
+        deleteChat: (user_id: string | number, for_both: boolean = false) =>
+            apiFetch('/messages/delete_chat/', { method: 'POST', body: JSON.stringify({ user_id, for_both }) }),
     },
     partners: {
         list: () => apiFetch('/partners/'),

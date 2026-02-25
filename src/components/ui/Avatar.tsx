@@ -50,7 +50,7 @@ export function Avatar({
       </div>
       {status &&
         <span
-          className={`absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full ring-2 ${statusColors[status]}`}
+          className={`absolute bottom-0.5 right-0.5 block h-2.5 w-2.5 rounded-full ring-2 ${statusColors[status]}`}
           style={{ borderColor: 'var(--theme-bg)' }} />
 
       }

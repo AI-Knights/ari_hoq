@@ -108,7 +108,7 @@ export function ProfilePage() {
         {/* Header / Avatar */}
         {/* mb-20 ensures the overlapping avatar has space before the cards grid */}
         <div className="relative mb-20">
-          <div className="h-48 rounded-3xl bg-gradient-to-r from-[#1a1a4a] to-[#0A1A3A] border border-theme-border overflow-hidden">
+          <div className="h-48 rounded-3xl bg-gradient-to-r from-theme-bg-elevated to-theme-bg border border-theme-border overflow-hidden">
             <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]" />
           </div>
           <div className="absolute -bottom-16 sm:-bottom-12 left-0 right-0 sm:left-8 flex flex-col sm:flex-row items-center sm:items-end justify-center sm:justify-start">
@@ -138,10 +138,10 @@ export function ProfilePage() {
             {/* Avatar is shifted down 48px (-bottom-12) or 64px 
                 Align text vertically relative to the avatar circle size */}
             <div className="mt-4 sm:mt-0 sm:ml-6 mb-2 sm:mb-6 flex flex-col justify-end text-center sm:text-left">
-              <h1 className="text-2xl sm:text-3xl font-serif font-bold text-white shadow-black drop-shadow-md">
+              <h1 className="text-2xl sm:text-3xl font-serif font-bold text-theme-text">
                 {user?.name}
               </h1>
-              <p className="text-sm sm:text-base text-gray-300 shadow-black drop-shadow-md">{user?.email}</p>
+              <p className="text-sm sm:text-base text-theme-text-secondary">{user?.email}</p>
             </div>
           </div>
         </div>

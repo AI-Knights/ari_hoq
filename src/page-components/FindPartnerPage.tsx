@@ -71,6 +71,22 @@ export function FindPartnerPage() {
     setIsIcebreakerModalOpen(true);
   };
 
+  const handleDecline = async () => {
+    if (!matchData) return;
+    
+    try {
+      // Record the skip so this person won't appear again
+      await api.match.skip(matchData.id);
+    } catch (err) {
+      console.error('Failed to record skip:', err);
+    }
+    
+    // Continue with finding another match
+    setMatchFound(false);
+    setMatchData(null);
+    setIsMatching(true);
+  };
+
   const handleSendIcebreaker = async () => {
     if (!matchData || !icebreakerText.trim()) return;
     setIsSendingRequest(true);
@@ -206,11 +222,7 @@ export function FindPartnerPage() {
                 timezone: matchData.timezone || 'Not specified',
               }}
               onAccept={handleAcceptClick}
-              onDecline={() => {
-                setMatchFound(false);
-                setMatchData(null);
-                setIsMatching(true);
-              }}
+              onDecline={handleDecline}
               onProfile={() => router.push(`/u/${matchData.id}`)}
             />
             <div className="text-center">

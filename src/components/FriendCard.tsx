@@ -11,7 +11,7 @@ import { Card } from './ui/Card';
 import { Avatar } from './ui/Avatar';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
-import { usePresence } from '../contexts/PresenceContext';
+import { useUserStatus } from '../hooks/useUserStatus';
 
 interface FriendCardProps {
   user: {
@@ -32,24 +32,14 @@ export function FriendCard({
   variant = 'friend',
   onAction
 }: FriendCardProps) {
-  const { onlineUsers } = usePresence();
+  const { getStatus } = useUserStatus();
   const [confirmingUnfriend, setConfirmingUnfriend] = useState(false);
 
-  const isOnlineContext = onlineUsers[user.id];
-  const currentStatus = isOnlineContext === true
-    ? 'online'
-    : (isOnlineContext === false
-      ? 'offline'
-      : user.status);
+  // Use unified status logic - friends are allowed to see status
+  const currentStatus = getStatus(user.id, user, true, false);
 
   return (
-    <Card className="p-5 flex flex-col h-full relative group">
-      <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button className="text-theme-text-secondary hover:text-theme-text">
-          <MoreVertical className="w-5 h-5" />
-        </button>
-      </div>
-
+    <Card className="p-5 flex flex-col h-full relative">
       <div className="flex items-center mb-4 cursor-pointer" onClick={() => onAction?.('profile', user.id)}>
         <Avatar
           src={user.avatar}

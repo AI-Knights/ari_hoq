@@ -22,7 +22,7 @@ export function CTASection() {
           viewport={{
             once: true
           }}
-          className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-[#0A1A3A] to-[#1a1a4a] border border-[#D4AF37]/30 p-8 md:p-16 text-center max-w-5xl mx-auto shadow-2xl">
+          className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-theme-bg-elevated to-theme-bg border border-[#D4AF37]/30 p-8 md:p-16 text-center max-w-5xl mx-auto">
 
           {/* Background decoration */}
           <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]"></div>
@@ -30,10 +30,10 @@ export function CTASection() {
           <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-[#D4AF37]/10 rounded-full blur-3xl"></div>
 
           <div className="relative z-10">
-            <h2 className="text-3xl md:text-5xl font-serif font-bold text-white mb-6">
+            <h2 className="text-3xl md:text-5xl font-serif font-bold text-theme-text mb-6">
               Begin Your Memorization Journey Today
             </h2>
-            <p className="text-gray-300 text-lg mb-10 max-w-2xl mx-auto">
+            <p className="text-theme-text-secondary text-lg mb-10 max-w-2xl mx-auto">
               Join thousands of students worldwide. Find your partner, stay
               consistent, and achieve your hifz goals.
             </p>
@@ -48,13 +48,13 @@ export function CTASection() {
               </button>
               <button
                 onClick={() => router.push('/about')}
-                className="px-8 py-4 rounded-full font-medium text-white border border-white/20 hover:bg-white/10 transition-all">
+                className="px-8 py-4 rounded-full font-medium text-theme-text border border-theme-border hover:bg-theme-bg-hover transition-all">
 
                 Learn More
               </button>
             </div>
 
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-theme-text-muted">
               Free to join. Connect with partners in minutes. No credit card
               required.
             </p>

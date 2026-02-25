@@ -138,25 +138,25 @@ export function AuthPage() {
   return (
     <div className="min-h-screen flex">
       {/* Left — Brand Panel */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-[#0A1A3A] via-[#11224a] to-[#0A1A3A] flex-col items-center justify-center p-16 relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-theme-bg via-theme-bg-elevated to-theme-bg flex-col items-center justify-center p-16 relative overflow-hidden">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#D4AF37] rounded-full blur-3xl" />
           <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-[#D4AF37] rounded-full blur-3xl" />
         </div>
         <div className="relative z-10 text-center">
           <h1 className="text-5xl font-serif font-bold text-[#D4AF37] mb-4">QuranPartners</h1>
-          <p className="text-xl text-gray-300 mb-8 max-w-md">
+          <p className="text-xl text-theme-text-secondary mb-8 max-w-md">
             Connect with memorization partners around the world. Study together, grow together.
           </p>
           <div className="text-[#D4AF37] font-serif text-2xl italic">
             "اقْرَأْ بِاسْمِ رَبِّكَ"
           </div>
-          <p className="text-gray-400 text-sm mt-2">Read in the name of your Lord — Al-'Alaq 96:1</p>
+          <p className="text-theme-text-muted text-sm mt-2">Read in the name of your Lord — Al-'Alaq 96:1</p>
         </div>
       </div>
 
       {/* Right — Auth Forms */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-[#0d0d0d]">
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-4 sm:p-8 bg-theme-bg">
         <div className="w-full max-w-md">
 
           <AnimatePresence mode="wait">
@@ -168,8 +168,8 @@ export function AuthPage() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
               >
-                <h2 className="text-3xl font-serif font-bold text-white mb-2">Welcome back</h2>
-                <p className="text-gray-400 mb-8">Sign in to continue your journey.</p>
+                <h2 className="text-2xl sm:text-3xl font-serif font-bold text-theme-text mb-2">Welcome back</h2>
+                <p className="text-theme-text-secondary mb-6 sm:mb-8">Sign in to continue your journey.</p>
 
                 {error && (
                   <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg text-sm">
@@ -201,12 +201,17 @@ export function AuthPage() {
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
                     required
                   />
+                  <div className="flex justify-end">
+                    <a href="/forgot-password" className="text-sm text-[#D4AF37] hover:underline">
+                      Forgot password?
+                    </a>
+                  </div>
                   <Button type="submit" size="lg" className="w-full" isLoading={isLoading} rightIcon={<ArrowRight className="w-4 h-4" />}>
                     Sign In
                   </Button>
                 </form>
 
-                <p className="text-center text-gray-500 text-sm mt-8">
+                <p className="text-center text-theme-text-muted text-sm mt-6 sm:mt-8">
                   Don't have an account?{' '}
                   <button onClick={() => { setStep('signup'); setError(''); }} className="text-[#D4AF37] hover:underline font-medium">
                     Sign Up
@@ -223,8 +228,8 @@ export function AuthPage() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
               >
-                <h2 className="text-3xl font-serif font-bold text-white mb-2">Create account</h2>
-                <p className="text-gray-400 mb-8">Join thousands of Quran memorizers worldwide.</p>
+                <h2 className="text-2xl sm:text-3xl font-serif font-bold text-theme-text mb-2">Create account</h2>
+                <p className="text-theme-text-secondary mb-6 sm:mb-8">Join thousands of Quran memorizers worldwide.</p>
 
                 {error && (
                   <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg text-sm">
@@ -248,7 +253,7 @@ export function AuthPage() {
                     placeholder="Min. 8 characters"
                     leftIcon={<Lock className="w-4 h-4" />}
                     rightIcon={
-                      <button type="button" onClick={() => setShowPassword(p => !p)} className="text-gray-400 hover:text-white transition-colors">
+                      <button type="button" onClick={() => setShowPassword(p => !p)} className="text-theme-text-secondary hover:text-theme-text transition-colors">
                         {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     }
@@ -262,7 +267,7 @@ export function AuthPage() {
                     placeholder="Repeat your password"
                     leftIcon={<Lock className="w-4 h-4" />}
                     rightIcon={
-                      <button type="button" onClick={() => setShowConfirmPassword(p => !p)} className="text-gray-400 hover:text-white transition-colors">
+                      <button type="button" onClick={() => setShowConfirmPassword(p => !p)} className="text-theme-text-secondary hover:text-theme-text transition-colors">
                         {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     }
@@ -275,7 +280,7 @@ export function AuthPage() {
                   </Button>
                 </form>
 
-                <p className="text-center text-gray-500 text-sm mt-8">
+                <p className="text-center text-theme-text-muted text-sm mt-6 sm:mt-8">
                   Already have an account?{' '}
                   <button onClick={() => { setStep('login'); setError(''); }} className="text-[#D4AF37] hover:underline font-medium">
                     Sign In
@@ -298,11 +303,11 @@ export function AuthPage() {
                   </div>
                 </div>
 
-                <h2 className="text-3xl font-serif font-bold text-white text-center mb-2">Check your email</h2>
-                <p className="text-gray-400 text-center mb-2">
+                <h2 className="text-2xl sm:text-3xl font-serif font-bold text-theme-text text-center mb-2">Check your email</h2>
+                <p className="text-theme-text-secondary text-center mb-2 text-sm sm:text-base">
                   We sent a 6-digit code to
                 </p>
-                <p className="text-[#D4AF37] text-center font-medium mb-8">{pendingEmail}</p>
+                <p className="text-[#D4AF37] text-center font-medium mb-6 sm:mb-8 text-sm sm:text-base">{pendingEmail}</p>
 
                 {error && (
                   <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg text-sm text-center">
@@ -312,7 +317,7 @@ export function AuthPage() {
 
                 <form onSubmit={handleVerify}>
                   {/* OTP input boxes */}
-                  <div className="flex gap-3 justify-center mb-8">
+                  <div className="flex gap-2 sm:gap-3 justify-center mb-6 sm:mb-8">
                     {otp.map((digit, i) => (
                       <input
                         key={i}
@@ -332,9 +337,9 @@ export function AuthPage() {
                           }
                         }}
                         className={`
-                          w-12 h-14 text-center text-xl font-bold rounded-xl border-2 bg-[#11224a] text-white
+                          w-10 h-12 sm:w-12 sm:h-14 text-center text-lg sm:text-xl font-bold rounded-xl border-2 bg-theme-bg-elevated text-theme-text
                           focus:outline-none transition-all
-                          ${digit ? 'border-[#D4AF37] text-[#D4AF37]' : 'border-white/10 focus:border-[#D4AF37]/60'}
+                          ${digit ? 'border-[#D4AF37] text-[#D4AF37]' : 'border-theme-border focus:border-[#D4AF37]/60'}
                         `}
                       />
                     ))}
@@ -346,7 +351,7 @@ export function AuthPage() {
                 </form>
 
                 <div className="text-center space-y-3">
-                  <p className="text-gray-500 text-sm">Didn't receive the code?</p>
+                  <p className="text-theme-text-muted text-sm">Didn't receive the code?</p>
                   <button
                     onClick={handleResend}
                     disabled={resendCooldown > 0}
@@ -357,7 +362,7 @@ export function AuthPage() {
                   </button>
                   <button
                     onClick={() => { setStep('signup'); setError(''); setOtp(['', '', '', '', '', '']); }}
-                    className="block mx-auto text-sm text-gray-500 hover:text-gray-300"
+                    className="block mx-auto text-sm text-theme-text-muted hover:text-theme-text-secondary"
                   >
                     ← Use a different email
                   </button>

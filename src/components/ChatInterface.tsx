@@ -14,14 +14,17 @@ import {
   BellOff,
   Trash,
   X,
-  ArrowLeft
+  ArrowLeft,
+  Search
 } from
   'lucide-react';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { Avatar } from './ui/Avatar';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
+import { DeleteChatModal } from './modals/DeleteChatModal';
+import { ReportModal } from './modals/ReportModal';
 
 interface Message {
   id: string;
@@ -42,14 +45,33 @@ interface ChatInterfaceProps {
   isLoadingMessages?: boolean;
   onLoadMore?: () => Promise<void>;
   hasMore?: boolean;
-  onDeleteChat?: () => Promise<void>;
+  onDeleteChat?: (forBoth: boolean) => Promise<void>;
   onUnfriend?: () => Promise<void>;
   onBlock?: () => Promise<void>;
+  onReport?: (data: { reason: string; reportType: string; severity: string; blockUser: boolean }) => Promise<void>;
   onBack?: () => void;
   onProfile?: () => void;
   onCallInitiate?: () => void;
+  isFriend?: boolean;
+  isBlocked?: boolean;
 }
-export function ChatInterface({ partner, existingMessages, onSendMessage, isLoadingMessages, onLoadMore, hasMore, onDeleteChat, onUnfriend, onBlock, onBack, onProfile, onCallInitiate }: ChatInterfaceProps) {
+export function ChatInterface({
+  partner,
+  existingMessages,
+  onSendMessage,
+  isLoadingMessages,
+  onLoadMore,
+  hasMore,
+  onDeleteChat,
+  onUnfriend,
+  onReport,
+  onBlock,
+  onBack,
+  onProfile,
+  onCallInitiate,
+  isFriend = true,
+  isBlocked = false
+}: ChatInterfaceProps) {
   const defaultMessages: Message[] = [
     {
       id: '1',
@@ -90,7 +112,10 @@ export function ChatInterface({ partner, existingMessages, onSendMessage, isLoad
   const [showZoomTimer, setShowZoomTimer] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [confirmingUnfriend, setConfirmingUnfriend] = useState(false);
+  const [confirmingBlock, setConfirmingBlock] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -163,20 +188,20 @@ export function ChatInterface({ partner, existingMessages, onSendMessage, isLoad
     }
   };
   return (
-    <div className="flex flex-col h-full min-h-0 bg-[#11224a]/50 lg:border border-white/5 lg:rounded-2xl overflow-hidden backdrop-blur-sm">
+    <div className="flex flex-col h-full min-h-0 bg-theme-bg-subtle lg:border border-theme-border lg:rounded-2xl overflow-hidden backdrop-blur-sm">
       {/* Header */}
-      <div className="p-4 border-b border-white/5 flex justify-between items-center bg-[#11224a]/80">
+      <div className="p-4 border-b border-theme-border flex justify-between items-center bg-theme-card">
         <div className="flex items-center gap-2 lg:gap-3">
           {onBack && (
             <button
               onClick={onBack}
-              className="lg:hidden p-2 -ml-1 text-gray-400 hover:text-white transition-colors"
+              className="lg:hidden p-2 -ml-1 text-theme-text-secondary hover:text-theme-text transition-colors"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
           )}
           <div
-            className="flex items-center gap-2 lg:gap-3 cursor-pointer hover:bg-white/5 p-1 -ml-1 rounded-lg transition-colors"
+            className="flex items-center gap-2 lg:gap-3 cursor-pointer hover:bg-theme-bg-hover p-1 -ml-1 rounded-lg transition-colors"
             onClick={onProfile}
           >
             <Avatar
@@ -199,19 +224,21 @@ export function ChatInterface({ partner, existingMessages, onSendMessage, isLoad
               <span className="text-[#D4AF37] font-mono text-sm">38:42</span>
             </div> :
 
-            <Button
-              variant="secondary"
-              size="sm"
-              className="px-2 lg:px-3"
-              leftIcon={<Video className="w-4 h-4" />}
-              onClick={onCallInitiate || (() => setShowZoomTimer(true))}>
-              <span className="hidden lg:inline">Start Session</span>
-            </Button>
+            isFriend && !isBlocked && (
+              <Button
+                variant="secondary"
+                size="sm"
+                className="px-2 lg:px-3"
+                leftIcon={<Video className="w-4 h-4" />}
+                onClick={onCallInitiate || (() => setShowZoomTimer(true))}>
+                <span className="hidden lg:inline">Start Session</span>
+              </Button>
+            )
           }
           <div className="relative" ref={menuRef}>
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className={`p-2 rounded-full transition-colors ${isMenuOpen ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+              className={`p-2 rounded-full transition-colors ${isMenuOpen ? 'bg-theme-bg-hover text-theme-text' : 'text-theme-text-secondary hover:text-theme-text hover:bg-theme-bg-hover'}`}>
               <MoreVertical className="w-5 h-5" />
             </button>
 
@@ -225,7 +252,7 @@ export function ChatInterface({ partner, existingMessages, onSendMessage, isLoad
                     View Profile
                   </button>
                   <button
-                    onClick={async () => { setIsMenuOpen(false); if (onDeleteChat) await onDeleteChat(); }}
+                    onClick={() => { setIsMenuOpen(false); setIsDeleteModalOpen(true); }}
                     className="w-full px-4 py-2.5 flex items-center gap-3 text-sm text-theme-text hover:bg-theme-bg-hover transition-colors text-left">
                     <Trash className="w-4 h-4 text-theme-text-secondary" />
                     Clear Chat
@@ -255,12 +282,37 @@ export function ChatInterface({ partner, existingMessages, onSendMessage, isLoad
                     </button>
                   )}
 
+                  {/* Report — Changed to open report modal */}
                   <button
-                    onClick={async () => { setIsMenuOpen(false); if (onBlock) await onBlock(); }}
+                    onClick={() => { setIsMenuOpen(false); setIsReportModalOpen(true); }}
                     className="w-full px-4 py-2.5 flex items-center gap-3 text-sm text-yellow-500 hover:bg-yellow-500/10 transition-colors text-left">
                     <Flag className="w-4 h-4" />
-                    Block & Report User
+                    Report User
                   </button>
+
+                  {/* Simple Block (without report) */}
+                  {confirmingBlock ? (
+                    <div className="px-4 py-2.5 flex items-center gap-2 bg-red-500/10">
+                      <span className="text-xs text-red-400 flex-1 font-medium">Block without reporting?</span>
+                      <button
+                        onClick={async () => { setIsMenuOpen(false); setConfirmingBlock(false); if (onBlock) await onBlock(); }}
+                        className="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition-colors">
+                        Yes
+                      </button>
+                      <button
+                        onClick={() => setConfirmingBlock(false)}
+                        className="px-2 py-1 text-xs bg-theme-bg-hover text-theme-text-secondary rounded hover:bg-theme-border transition-colors">
+                        No
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmingBlock(true)}
+                      className="w-full px-4 py-2.5 flex items-center gap-3 text-sm text-red-500 hover:bg-red-500/10 transition-colors text-left">
+                      <BellOff className="w-4 h-4" />
+                      Block User
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -286,13 +338,13 @@ export function ChatInterface({ partner, existingMessages, onSendMessage, isLoad
               className={`flex mb-4 ${isMe ? 'justify-end' : 'justify-start'}`}>
 
               <div
-                className={`max-w-[70%] px-4 py-3 rounded-2xl ${isMe ? 'bg-[#D4AF37] text-[#0A1A3A] rounded-tr-none' : 'bg-white/10 text-white rounded-tl-none'}`}>
+                className={`max-w-[70%] px-4 py-3 rounded-2xl ${isMe ? 'bg-[#D4AF37] text-[#0A1A3A] rounded-tr-none' : 'bg-theme-bg-elevated text-theme-text rounded-tl-none'}`}>
 
                 <p className="text-sm leading-relaxed">{msg.text}</p>
                 <div
                   className={`mt-1 flex items-center gap-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
                   <p
-                    className={`text-[10px] ${isMe ? 'text-[#0A1A3A]/60' : 'text-gray-400'}`}>
+                    className={`text-[10px] ${isMe ? 'text-[#0A1A3A]/60' : 'text-theme-text-muted'}`}>
                     {msg.timestamp.toLocaleTimeString([], {
                       hour: '2-digit',
                       minute: '2-digit'
@@ -320,27 +372,60 @@ export function ChatInterface({ partner, existingMessages, onSendMessage, isLoad
       </div>
 
       {/* Input Area */}
-      <div className="p-4 border-t border-white/5 bg-[#11224a]/80">
-        <form onSubmit={handleSend} className="flex gap-2 items-center">
-          <input
-            type="text"
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            placeholder="Type a message..."
-            className="flex-1 bg-[#0A1A3A]/50 border border-white/10 rounded-full px-4 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37]" />
+      {isFriend && !isBlocked ? (
+        <div className="p-4 border-t border-theme-border bg-theme-card">
+          <form onSubmit={handleSend} className="flex gap-2 items-center">
+            <input
+              type="text"
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              placeholder="Type a message..."
+              className="flex-1 bg-theme-input border border-theme-border rounded-full px-4 py-2.5 text-theme-text placeholder-theme-text-muted focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37]" />
 
+            <button
+              type="submit"
+              disabled={!newMessage.trim()}
+              className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors shadow-lg ${newMessage.trim()
+                ? 'bg-[#D4AF37] text-[#0A1A3A] hover:bg-[#fce588] cursor-pointer'
+                : 'bg-[#D4AF37]/20 text-[#D4AF37]/50 cursor-not-allowed'
+                }`}
+            >
+              <Send className="w-5 h-5" />
+            </button>
+          </form>
+        </div>
+      ) : (
+        <div className="p-6 border-t border-theme-border bg-theme-card backdrop-blur-md flex flex-col items-center justify-center text-center animate-in slide-in-from-bottom-4 duration-500">
+          <div className="w-12 h-12 bg-theme-bg-subtle rounded-full flex items-center justify-center mb-3">
+            {isBlocked ? <BellOff className="w-6 h-6 text-red-500" /> : <UserMinus className="w-6 h-6 text-theme-text-secondary" />}
+          </div>
+          <p className="text-theme-text font-medium mb-1 truncate max-w-full">
+            {isBlocked ? `You blocked ${partner.name}` : `You unfriended ${partner.name}`}
+          </p>
+          <p className="text-theme-text-muted text-xs mb-4">
+            {isBlocked ? "You can't message each other while blocked." : "You can't message this user because you are not friends."}
+          </p>
           <button
-            type="submit"
-            disabled={!newMessage.trim()}
-            className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors shadow-lg ${newMessage.trim()
-              ? 'bg-[#D4AF37] text-[#0A1A3A] hover:bg-[#fce588] cursor-pointer'
-              : 'bg-[#D4AF37]/20 text-[#D4AF37]/50 cursor-not-allowed'
-              }`}
+            onClick={() => router.push('/friends')}
+            className="text-[#D4AF37] text-xs font-bold hover:underline py-2 px-4 rounded-lg bg-[#D4AF37]/5 hover:bg-[#D4AF37]/10 transition-all"
           >
-            <Send className="w-5 h-5" />
+            {isBlocked ? 'Manage Blocks →' : 'View Friendship Status →'}
           </button>
-        </form>
-      </div>
+        </div>
+      )}
+      <DeleteChatModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={(forBoth) => onDeleteChat?.(forBoth)}
+        partnerName={partner.name}
+      />
+      <ReportModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        onSubmit={async (data) => {
+          if (onReport) await onReport(data);
+        }}
+        partnerName={partner.name}
+      />
     </div>);
-
 }

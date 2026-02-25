@@ -3,7 +3,7 @@ import { AuthPage } from '../../src/page-components/AuthPage';
 
 export default function Auth() {
     return (
-        <Suspense fallback={<div className="min-h-screen bg-[#0d0d0d]" />}>
+        <Suspense fallback={<div className="min-h-screen bg-theme-bg" />}>
             <AuthPage />
         </Suspense>
     );
