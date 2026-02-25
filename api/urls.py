@@ -23,6 +23,7 @@ urlpatterns = [
     path('auth/me/', views.MeView.as_view(), name='me'),
     path('auth/profile/', views.ProfileView.as_view(), name='profile'),
     path('auth/change-password/', views.ChangePasswordView.as_view(), name='change-password'),
+    path('auth/delete-account/', views.DeleteAccountView.as_view(), name='delete-account'),
     path('auth/password-reset/', views.PasswordResetRequestView.as_view(), name='password-reset-request'),
     path('auth/password-reset/confirm/', views.SetNewPasswordView.as_view(), name='password-reset-confirm'),
     path('auth/token/refresh/', TokenRefreshView.as_view(), name='token-refresh'),

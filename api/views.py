@@ -199,6 +199,24 @@ class ChangePasswordView(APIView):
         return Response({'message': 'Password changed successfully.'})
 
 
+class DeleteAccountView(APIView):
+    """Delete user account - requires password confirmation."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        password = request.data.get('password')
+        if not password:
+            return Response({'error': 'Password is required to delete account.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        user = request.user
+        if not user.check_password(password):
+            return Response({'error': 'Incorrect password.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Delete the user account
+        user.delete()
+        return Response({'message': 'Account deleted successfully.'}, status=status.HTTP_200_OK)
+
+
 class PasswordResetRequestView(APIView):
     """Step 1: Send reset OTP."""
     permission_classes = [permissions.AllowAny]
