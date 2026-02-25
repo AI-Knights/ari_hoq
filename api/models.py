@@ -71,6 +71,7 @@ class UserAccount(AbstractBaseUser, PermissionsMixin):
     # Stats
     memorized_surahs_count = models.IntegerField(default=0)
     current_streak = models.IntegerField(default=0)
+    last_streak_update = models.DateField(null=True, blank=True)  # Track last day streak was updated
 
     # Moderation
     is_suspended = models.BooleanField(default=False)
@@ -95,6 +96,35 @@ class UserAccount(AbstractBaseUser, PermissionsMixin):
 
     def get_short_name(self):
         return (self.full_name or self.username or self.email).split()[0]
+
+    def update_streak(self):
+        """
+        Update user's activity streak.
+        - If last update was yesterday: increment streak
+        - If last update was today: no change
+        - If last update was 2+ days ago: reset to 1
+        - If never updated: set to 1
+        """
+        from django.utils import timezone
+        today = timezone.now().date()
+        
+        if self.last_streak_update is None:
+            # First time activity
+            self.current_streak = 1
+            self.last_streak_update = today
+        elif self.last_streak_update == today:
+            # Already updated today, no change
+            pass
+        elif self.last_streak_update == today - timezone.timedelta(days=1):
+            # Updated yesterday, increment streak
+            self.current_streak += 1
+            self.last_streak_update = today
+        else:
+            # Streak broken (2+ days ago), reset
+            self.current_streak = 1
+            self.last_streak_update = today
+        
+        self.save(update_fields=['current_streak', 'last_streak_update'])
 
     class Meta:
         verbose_name = "User Account"

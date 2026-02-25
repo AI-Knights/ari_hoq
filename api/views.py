@@ -299,12 +299,16 @@ class DashboardStatsView(APIView):
             partner = f.user2 if f.user1 == user else f.user1
             recent_matches.append(MinimalUserSerializer(partner).data)
 
-        fifteen_min_ago = timezone.now() - timedelta(minutes=15)
-        online_count = User.objects.filter(last_active__gte=fifteen_min_ago, is_active=True).count()
+        # Use same 3-minute threshold as get_status() in serializers for consistency
+        three_min_ago = timezone.now() - timedelta(minutes=3)
+        online_count = User.objects.filter(last_active__gte=three_min_ago, is_active=True).count()
 
         user.memorized_surahs_count = completed_count
         user.last_active = timezone.now()
         user.save(update_fields=['memorized_surahs_count', 'last_active'])
+        
+        # Update streak on dashboard visit (daily login counts as activity)
+        user.update_streak()
 
         return Response({
             'streak': user.current_streak,
@@ -335,10 +339,10 @@ class MatchView(APIView):
         pref.goals = goals
         pref.save()
 
-        # Exclude self, existing friends, pending requests (sent & received), and blocks
+        # Exclude self, existing friends, pending requests, declined matches, and blocks
         existing = Friendship.objects.filter(
             Q(user1=request.user) | Q(user2=request.user),
-            status__in=['accepted', 'pending']   # skip declined so they can re-match
+            status__in=['accepted', 'pending', 'declined']   # now also excluding declined
         ).values_list('user1_id', 'user2_id')
         excluded = {request.user.id}
         for u1, u2 in existing:
@@ -376,6 +380,40 @@ class MatchView(APIView):
         return Response({'match': data})
 
 
+class SkipMatchView(APIView):
+    """Record that a user declined/skipped a suggested match"""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        user_id = request.data.get('user_id')
+        if not user_id:
+            return Response({'error': 'user_id required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        target = User.objects.filter(id=user_id).first()
+        if not target:
+            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Check if friendship already exists
+        existing = Friendship.objects.filter(
+            Q(user1=request.user, user2=target) | Q(user1=target, user2=request.user)
+        ).first()
+        
+        if existing:
+            # If already exists, just update to declined
+            existing.status = 'declined'
+            existing.save()
+        else:
+            # Create new friendship with declined status
+            Friendship.objects.create(
+                user1=request.user,
+                user2=target,
+                status='declined',
+                message='Skipped during matching'
+            )
+        
+        return Response({'status': 'skipped'})
+
+
 # ---------------------------------------------------------------------------
 # Admin
 # ---------------------------------------------------------------------------
@@ -395,11 +433,73 @@ class AdminStatsView(APIView):
         if not is_admin_or_mod(request.user):
             return Response({'error': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
         today = timezone.now().date()
+        from datetime import timedelta
+        
+        # User activity breakdown
+        now = timezone.now()
+        last_hour = now - timedelta(hours=1)
+        last_day = now - timedelta(days=1)
+        last_week = now - timedelta(days=7)
+        
+        active_last_hour = User.objects.filter(last_active__gte=last_hour, is_active=True).count()
+        active_last_day = User.objects.filter(last_active__gte=last_day, is_active=True).count()
+        active_last_week = User.objects.filter(last_active__gte=last_week, is_active=True).count()
+        total_users = User.objects.filter(is_active=True).count()
+        inactive_users = total_users - active_last_week
+        
+        # Hifz progress distribution - optimized single query
+        from django.db.models import Count, Case, When, IntegerField, Q
+        from django.db.models.functions import Cast
+        
+        # Annotate each user with their mastered count, then calculate percentage
+        users_with_progress = User.objects.filter(is_active=True).annotate(
+            mastered_count=Count(
+                'hifz_progress',
+                filter=Q(hifz_progress__status='mastered'),
+                distinct=True
+            )
+        ).annotate(
+            progress_percentage=Cast('mastered_count', IntegerField()) * 100 / 114
+        ).aggregate(
+            range_0_25=Count('id', filter=Q(progress_percentage__lte=25)),
+            range_26_50=Count('id', filter=Q(progress_percentage__gt=25, progress_percentage__lte=50)),
+            range_51_75=Count('id', filter=Q(progress_percentage__gt=50, progress_percentage__lte=75)),
+            range_76_100=Count('id', filter=Q(progress_percentage__gt=75))
+        )
+        
+        progress_ranges = {
+            '0-25': users_with_progress['range_0_25'] or 0,
+            '26-50': users_with_progress['range_26_50'] or 0,
+            '51-75': users_with_progress['range_51_75'] or 0,
+            '76-100': users_with_progress['range_76_100'] or 0,
+        }
+        
+        # Recent registrations (last 7 days)
+        recent_signups = User.objects.filter(
+            date_joined__gte=last_week, 
+            is_active=True
+        ).count()
+        
+        # Friendship activity
+        recent_friendships = Friendship.objects.filter(
+            created_at__gte=last_week,
+            status='accepted'
+        ).count()
+        
         return Response({
-            'total_users': User.objects.filter(is_active=True).count(),
+            'total_users': total_users,
             'active_reports': Report.objects.filter(status='pending').count(),
             'suspended_users': User.objects.filter(is_suspended=True).count(),
             'messages_today': Message.objects.filter(timestamp__date=today).count(),
+            'user_activity': {
+                'last_hour': active_last_hour,
+                'last_day': active_last_day,
+                'last_week': active_last_week,
+                'inactive': inactive_users,
+            },
+            'hifz_distribution': progress_ranges,
+            'recent_signups': recent_signups,
+            'recent_friendships': recent_friendships,
         })
 
 
@@ -468,7 +568,17 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
     search_fields = ['username', 'email', 'full_name', 'level', 'location']
 
     def get_queryset(self):
+        """
+        For listing/searching: exclude blocked users
+        For individual retrieval: allow viewing (needed for reporting, verification)
+        """
         u = self.request.user
+        
+        # If this is a detail view (retrieve), don't filter blocks
+        if self.action == 'retrieve':
+            return User.objects.filter(is_active=True)
+        
+        # For list/search: exclude blocks
         excluded = set()
         from .models import Block
         from django.db.models import Q
@@ -479,10 +589,7 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
         return User.objects.filter(is_active=True).exclude(id__in=excluded)
 
     def retrieve(self, request, *args, **kwargs):
-        print(f"UserViewSet.retrieve() called with kwargs: {kwargs}")
-        pk = kwargs.get('pk')
-        qs = self.get_queryset()
-        print(f"Queryset count: {qs.count()}, contains pk? {qs.filter(pk=pk).exists()}")
+        """Allow viewing blocked user profiles (needed for context when reporting)"""
         return super().retrieve(request, *args, **kwargs)
 
 
@@ -517,9 +624,14 @@ class HifzProgressViewSet(viewsets.ModelViewSet):
         if not created:
             progress.status = 'not_started' if progress.status == 'mastered' else 'mastered'
             progress.save()
+        
         count = HifzProgress.objects.filter(user=request.user, status='mastered').count()
         request.user.memorized_surahs_count = count
         request.user.save(update_fields=['memorized_surahs_count'])
+        
+        # Update streak when user makes progress
+        request.user.update_streak()
+        
         return Response(HifzProgressSerializer(progress).data)
 
 
@@ -652,6 +764,7 @@ class FriendshipViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'])
     def block(self, request):
+        """Block a user without creating a report"""
         user_id = request.data.get('user_id')
         if not user_id:
             return Response({'error': 'user_id required'}, status=status.HTTP_400_BAD_REQUEST)
@@ -671,7 +784,61 @@ class FriendshipViewSet(viewsets.ModelViewSet):
         ).delete()
 
         Block.objects.get_or_create(blocker=request.user, blocked=target)
+        
         return Response({'status': 'blocked'})
+    
+    @action(detail=False, methods=['post'])
+    def report_and_block(self, request):
+        """Report a user and optionally block them"""
+        user_id = request.data.get('user_id')
+        reason = request.data.get('reason', '').strip()
+        report_type = request.data.get('report_type', 'other')
+        severity = request.data.get('severity', 'medium')
+        block_user = request.data.get('block_user', True)
+        
+        if not user_id:
+            return Response({'error': 'user_id required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not reason:
+            return Response({'error': 'reason required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if len(reason) > 500:
+            return Response({'error': 'Reason must be 500 characters or less'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        target = User.objects.filter(id=user_id).first()
+        if not target:
+            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        if target == request.user:
+            return Response({'error': 'Cannot report yourself'}, status=status.HTTP_400_BAD_REQUEST)
+
+        from django.db.models import Q
+        from .models import Block, Report
+        
+        # Create the report
+        report = Report.objects.create(
+            reporter=request.user,
+            reported_user=target,
+            reason=reason,
+            report_type=report_type,
+            severity=severity,
+            status='pending'
+        )
+        
+        # Optionally block the user
+        if block_user:
+            # Delete any existing friendship
+            Friendship.objects.filter(
+                Q(user1=request.user, user2=target) | Q(user1=target, user2=request.user)
+            ).delete()
+            
+            Block.objects.get_or_create(blocker=request.user, blocked=target)
+        
+        return Response({
+            'status': 'reported',
+            'blocked': block_user,
+            'report_id': report.id
+        }, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=['get'])
     def list_blocked(self, request):
@@ -726,17 +893,24 @@ class MessageViewSet(viewsets.ModelViewSet):
         return Message.objects.filter(Q(sender=u) | Q(recipient=u)).select_related('sender', 'recipient')
 
     def create(self, request, *args, **kwargs):
-        """Block messages to non-friends."""
+        """Block messages to non-friends or if blocked."""
         recipient_id = request.data.get('recipient_id')
         if recipient_id:
+            from .models import Block, Friendship
             is_friend = Friendship.objects.filter(
                 Q(user1=request.user, user2_id=recipient_id) |
                 Q(user1_id=recipient_id, user2=request.user),
                 status='accepted'
             ).exists()
-            if not is_friend:
+            
+            is_blocked = Block.objects.filter(
+                Q(blocker=request.user, blocked_id=recipient_id) |
+                Q(blocker_id=recipient_id, blocked=request.user)
+            ).exists()
+            
+            if not is_friend or is_blocked:
                 return Response(
-                    {'error': 'You can only message friends.'},
+                    {'error': 'You can only message friends, and not if blocked.'},
                     status=status.HTTP_403_FORBIDDEN
                 )
         return super().create(request, *args, **kwargs)
@@ -747,17 +921,45 @@ class MessageViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
     def delete_chat(self, request):
         user_id = request.data.get('user_id')
-        from .models import DeletedChat
+        for_both = request.data.get('for_both', False)
+        
+        from .models import DeletedChat, Message
         target = User.objects.filter(id=user_id).first()
         if not target:
             return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
         
         from django.utils import timezone
-        DeletedChat.objects.update_or_create(
-            user=request.user, partner=target,
-            defaults={'deleted_at': timezone.now()}
-        )
-        return Response({'status': 'Chat deleted'})
+        
+        if for_both:
+            # Refinement: Only delete messages that the requester can currently see.
+            # If they previously did "Only for me", messages prior to that 'deleted_at' are already hidden.
+            my_deleted_record = DeletedChat.objects.filter(user=request.user, partner=target).first()
+            
+            msgs = Message.objects.filter(
+                Q(sender=request.user, recipient=target) | 
+                Q(sender=target, recipient=request.user)
+            )
+            
+            if my_deleted_record:
+                # Only delete messages sent AFTER their last virtual deletion
+                msgs = msgs.filter(timestamp__gt=my_deleted_record.deleted_at)
+            
+            msgs.delete()
+            
+            # Reset my virtual deletion record since I just cleared everything I could see
+            if my_deleted_record:
+                my_deleted_record.delete()
+                
+            msg = 'Visible chat cleared for both users'
+        else:
+            # Classic "Only for me" — hide messages from current user's view
+            DeletedChat.objects.update_or_create(
+                user=request.user, partner=target,
+                defaults={'deleted_at': timezone.now()}
+            )
+            msg = 'Chat deleted for you'
+            
+        return Response({'status': msg})
 
     @action(detail=False, methods=['get'])
     def conversation(self, request):

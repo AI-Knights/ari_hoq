@@ -28,6 +28,17 @@ class MinimalUserSerializer(serializers.ModelSerializer):
     def get_status(self, obj):
         from django.utils import timezone
         import datetime
+        from django.db.models import Q
+        from .models import Block
+        
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            # Hide status if there's a block in either direction
+            if Block.objects.filter(
+                Q(blocker=request.user, blocked=obj) | Q(blocker=obj, blocked=request.user)
+            ).exists():
+                return 'offline'
+
         if not obj.last_active:
             return 'offline'
         if timezone.now() - obj.last_active < datetime.timedelta(minutes=3):
