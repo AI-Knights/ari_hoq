@@ -4,15 +4,40 @@ import { useState, useEffect, useCallback } from 'react';
 import { api } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useWebSocket } from './useWebSocket';
+import { getAccessToken } from '../lib/tokenUtils';
 
 export function useUnreadMessages() {
   const [hasUnread, setHasUnread] = useState(false);
   const { user } = useAuth();
-  
-  const wsUrl = user?.id 
-    ? `${process.env.NEXT_PUBLIC_WS_URL || (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' ? 'wss://dev.projectyard.top' : 'ws://127.0.0.1:8000')}/ws/chat/?token=${typeof window !== 'undefined' ? localStorage.getItem('access_token') : ''}`
-    : null;
-  
+  const [wsUrl, setWsUrl] = useState<string | null>(null);
+
+  // Fetch access token from cookie and build WebSocket URL
+  useEffect(() => {
+    if (!user?.id) {
+      setWsUrl(null);
+      return;
+    }
+
+    const buildWsUrl = async () => {
+      const token = await getAccessToken();
+      if (!token) {
+        setWsUrl(null);
+        return;
+      }
+
+      const baseUrl = process.env.NEXT_PUBLIC_WS_URL || 
+        (typeof window !== 'undefined' && 
+         window.location.hostname !== 'localhost' && 
+         window.location.hostname !== '127.0.0.1' 
+          ? 'wss://dev.projectyard.top' 
+          : 'ws://127.0.0.1:8000');
+      
+      setWsUrl(`${baseUrl}/ws/chat/?token=${token}`);
+    };
+
+    buildWsUrl();
+  }, [user?.id]);
+
   const { client } = useWebSocket(wsUrl);
 
   const checkUnreadMessages = useCallback(async () => {
@@ -23,7 +48,7 @@ export function useUnreadMessages() {
 
     try {
       const threads = await api.messages.threads();
-      const totalUnread = Array.isArray(threads) 
+      const totalUnread = Array.isArray(threads)
         ? threads.reduce((sum: number, thread: any) => sum + (thread.unread || 0), 0)
         : 0;
       setHasUnread(totalUnread > 0);
@@ -36,10 +61,10 @@ export function useUnreadMessages() {
   useEffect(() => {
     if (user) {
       checkUnreadMessages();
-      
+
       // Poll for updates every 30 seconds
       const interval = setInterval(checkUnreadMessages, 30000);
-      
+
       // Listen for custom event when messages are marked as read
       const handleMessagesRead = () => {
         // Add small delay to let backend process read receipts
@@ -47,9 +72,9 @@ export function useUnreadMessages() {
           checkUnreadMessages();
         }, 300);
       };
-      
+
       window.addEventListener('messagesRead', handleMessagesRead);
-      
+
       return () => {
         clearInterval(interval);
         window.removeEventListener('messagesRead', handleMessagesRead);

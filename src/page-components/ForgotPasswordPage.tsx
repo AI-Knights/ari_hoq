@@ -15,7 +15,7 @@ export function ForgotPasswordPage() {
   const router = useRouter();
   const { user } = useAuth();
   const [step, setStep] = useState<Step>('email');
-  
+
   // Redirect authenticated users to dashboard
   useEffect(() => {
     if (user) {
@@ -220,11 +220,12 @@ export function ForgotPasswordPage() {
                             otpRefs.current[5]?.focus();
                           }
                         }}
-                        className={`
-                          w-10 h-12 sm:w-12 sm:h-14 text-center text-lg sm:text-xl font-bold rounded-xl border-2 bg-theme-bg-elevated text-theme-text
-                          focus:outline-none transition-all
-                          ${digit ? 'border-[#D4AF37] text-[#D4AF37]' : 'border-theme-border focus:border-[#D4AF37]/60'}
-                        `}
+                        className="w-10 h-12 sm:w-12 sm:h-14 text-center text-lg sm:text-xl font-bold rounded-xl border-2 focus:outline-none transition-all"
+                        style={{
+                          color: '#0A1A3A',
+                          backgroundColor: '#FFFFFF',
+                          borderColor: '#D4AF37',
+                        }}
                       />
                     ))}
                   </div>

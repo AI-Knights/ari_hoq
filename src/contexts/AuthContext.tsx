@@ -1,7 +1,14 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { api, apiFetch } from '../lib/api';
+
+/**
+ * Production-grade AuthContext.
+ *
+ * Tokens are NEVER stored in localStorage. They live in httpOnly cookies
+ * managed entirely by the server (Django backend + Next.js API route proxies).
+ * This context only stores the decoded user object in React state.
+ */
 
 interface User {
     id: string;
@@ -24,9 +31,7 @@ interface AuthContextType {
     user: User | null;
     isAuthenticated: boolean;
     isLoading: boolean;
-    // Step 1 — returns {email, step: 'verify'} or throws
     register: (email: string, password: string, username?: string) => Promise<{ email: string }>;
-    // Step 2 — verifies OTP, logs user in
     verifyEmail: (email: string, code: string) => Promise<User>;
     resendCode: (email: string) => Promise<void>;
     login: (email: string, password: string) => Promise<User>;
@@ -36,21 +41,11 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-function storeTokens(access: string, refresh: string) {
-    localStorage.setItem('access_token', access);
-    localStorage.setItem('refresh_token', refresh);
-}
-
-function clearTokens() {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-}
-
 function mapUser(data: any): User {
     return {
-        id: String(data.id),
-        name: data.username,
-        email: data.email,
+        id: String(data.id ?? data.user_id ?? ''),
+        name: data.username ?? data.name ?? data.full_name ?? '',
+        email: data.email ?? '',
         role: data.role,
         avatar: data.avatar,
         level: data.level,
@@ -65,84 +60,101 @@ function mapUser(data: any): User {
     };
 }
 
+/** Thin wrapper — throws on non-2xx with a readable message. */
+async function authFetch(path: string, init: RequestInit = {}) {
+    const res = await fetch(path, { ...init, credentials: 'include' });
+    if (!res.ok) {
+        let msg = `Error ${res.status}`;
+        try {
+            const err = await res.json();
+            msg = err.detail ?? err.error ?? err.message ?? msg;
+        } catch { /* non-JSON */ }
+        throw new Error(msg);
+    }
+    if (res.status === 204) return {};
+    return res.json();
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Attempt to restore session from stored access token
+    // On mount: restore session by asking our server-side /api/auth/session endpoint.
+    // It reads the httpOnly access_token cookie and returns the decoded user claims.
     useEffect(() => {
-        const restore = async () => {
-            const access = localStorage.getItem('access_token');
-            if (!access) { setIsLoading(false); return; }
+        (async () => {
             try {
-                const data = await api.auth.me();
-                setUser(mapUser(data));
-            } catch {
-                // Try refreshing
-                const refresh = localStorage.getItem('refresh_token');
-                if (refresh) {
+                const data = await authFetch('/api/auth/session');
+                if (data?.user) {
+                    // Session route only has JWT claims — fetch full profile for extra fields
                     try {
-                        const res = await api.auth.refreshToken(refresh);
-                        localStorage.setItem('access_token', res.access);
-                        if (res.refresh) localStorage.setItem('refresh_token', res.refresh);
-                        const data = await api.auth.me();
-                        setUser(mapUser(data));
+                        const profile = await authFetch('/api/proxy/auth/me');
+                        setUser(mapUser(profile));
                     } catch {
-                        clearTokens();
+                        setUser(mapUser(data.user));
                     }
-                } else {
-                    clearTokens();
                 }
+            } catch {
+                setUser(null);
             } finally {
                 setIsLoading(false);
             }
-        };
-        restore();
+        })();
     }, []);
 
     const register = useCallback(async (email: string, password: string, username?: string) => {
-        // Step 1: request verification code
-        await api.auth.register({ email, password, username });
+        await authFetch('/api/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password, username }),
+        });
         return { email };
     }, []);
 
     const verifyEmail = useCallback(async (email: string, code: string) => {
-        const data = await api.auth.verifyEmail({ email, otp: code });
-        storeTokens(data.access, data.refresh);
+        const data = await authFetch('/api/auth/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, otp: code }),
+        });
+
         const mapped = mapUser(data.user);
         setUser(mapped);
         return mapped;
     }, []);
 
     const resendCode = useCallback(async (email: string) => {
-        await api.auth.resendCode({ email });
+        await authFetch('/api/proxy/auth/resend-code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email }),
+        });
     }, []);
 
     const login = useCallback(async (email: string, password: string) => {
-        const data = await api.auth.login({ email, password });
-        storeTokens(data.access, data.refresh);
+        const data = await authFetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password }),
+        });
+
         const mapped = mapUser(data.user);
         setUser(mapped);
         return mapped;
     }, []);
 
     const logout = useCallback(async () => {
-        try { await api.auth.logout(); } catch { /* ignore */ }
-        clearTokens();
+        try {
+            await authFetch('/api/auth/logout', { method: 'POST' });
+        } catch { /* ignore — cookies are always cleared */ }
         setUser(null);
     }, []);
 
     const updateUser = useCallback((data: Partial<User> | FormData | object) => {
-        // If it's a FormData object, extract the fields that update the local state directly.
         if (data instanceof FormData) {
             const updates: Partial<User> = {};
             const name = data.get('name');
-            const avatar = data.get('avatar');
-
             if (name) updates.name = name as string;
-            // The actual image URL will require a backend refresh, 
-            // but for immediate local state we ignore the binary and wait for the API response.
-
             setUser(prev => prev ? { ...prev, ...updates } : null);
         } else {
             setUser(prev => prev ? { ...prev, ...(data as Partial<User>) } : null);

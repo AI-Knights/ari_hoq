@@ -1,26 +1,35 @@
-// Central API utility — supports Bearer JWT tokens
+/**
+ * Central API utility — Production-grade, httpOnly cookie auth.
+ *
+ * Tokens are stored in httpOnly cookies managed by the server.
+ * This client never reads or writes localStorage.
+ * All requests use `credentials: 'include'` so the browser automatically
+ * sends the access_token cookie on every request to the Django backend.
+ *
+ * Auto-refresh: On 401, the client calls our Next.js /api/auth/token-refresh
+ * route (which reads the httpOnly refresh_token cookie server-side and sets
+ * a new access_token cookie), then replays the original request.
+ */
 
-const getApiBase = () => {
+const getApiBase = (): string => {
+    // In development and production, always use Next.js proxy to avoid CORS issues
+    // The proxy will forward requests to Django with proper cookie handling
+    if (typeof window !== 'undefined') {
+        // Client-side: use relative path to Next.js API proxy
+        return '/api/proxy';
+    }
+    
+    // Server-side: use full Django URL for Server Components
     let url = process.env.NEXT_PUBLIC_API_URL;
     if (url) {
-        url = url.replace(/\/+$/, ''); // Strip trailing slashes
-        if (!url.endsWith('/api')) {
-            url += '/api';
-        }
+        url = url.replace(/\/+$/, '');
+        if (!url.endsWith('/api')) url += '/api';
         return url;
-    }
-    if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-        return 'https://dev.projectyard.top/api';
     }
     return 'http://127.0.0.1:8000/api';
 };
 
 const API_BASE = getApiBase();
-
-function getToken(): string | null {
-    if (typeof window === 'undefined') return null;
-    return localStorage.getItem('access_token');
-}
 
 interface FetchOptions extends RequestInit {
     skipAuth?: boolean;
@@ -32,7 +41,6 @@ export async function apiFetch<T = any>(
     options: FetchOptions = {}
 ): Promise<T> {
     const { skipAuth = false, isRetry = false, ...init } = options;
-    const token = getToken();
 
     const headers: Record<string, string> = {
         ...(init.headers as Record<string, string>),
@@ -42,47 +50,42 @@ export async function apiFetch<T = any>(
         headers['Content-Type'] = 'application/json';
     }
 
-    if (token && !skipAuth) {
-        headers['Authorization'] = `Bearer ${token}`;
-    }
+    // Remove trailing slash for Next.js catch-all route compatibility
+    // Next.js redirects /api/proxy/path/ to /api/proxy/path which can cause issues
+    const normalizedPath = path.endsWith('/') && path.length > 1 ? path.slice(0, -1) : path;
 
-    const response = await fetch(`${API_BASE}${path}`, { ...init, headers });
+    // Always include credentials so httpOnly cookies are sent automatically
+    const response = await fetch(`${API_BASE}${normalizedPath}`, {
+        ...init,
+        headers,
+        credentials: 'include',
+    });
 
     if (!response.ok) {
-        // Automatic Refresh Token Interceptor
+        // Automatic token refresh on 401
         if (response.status === 401 && !skipAuth && !isRetry) {
-            const refreshToken = typeof window !== 'undefined' ? localStorage.getItem('refresh_token') : null;
-            if (refreshToken) {
-                try {
-                    // Attempt to grab a new access token
-                    const refreshRes = await fetch(`${API_BASE}/auth/token/refresh/`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ refresh: refreshToken })
-                    });
+            try {
+                const refreshRes = await fetch('/api/auth/token-refresh', {
+                    method: 'POST',
+                    credentials: 'include',
+                });
 
-                    if (refreshRes.ok) {
-                        const refreshData = await refreshRes.json();
-                        if (typeof window !== 'undefined') {
-                            localStorage.setItem('access_token', refreshData.access);
-                            if (refreshData.refresh) {
-                                localStorage.setItem('refresh_token', refreshData.refresh);
-                            }
-                        }
-                        // Replay the original request with the new token
-                        return apiFetch<T>(path, { ...options, isRetry: true });
-                    }
-                } catch (e) {
-                    console.error("Token refresh failed", e);
+                if (refreshRes.ok) {
+                    // Replay the original request — browser now has the new access cookie
+                    return apiFetch<T>(path, { ...options, isRetry: true });
                 }
+            } catch (e) {
+                console.error('Token refresh failed', e);
             }
-            // If refresh fails or no refresh token, let it fall through to normal error handling (usually logs user out)
+            // Refresh also failed — redirect to login
+            if (typeof window !== 'undefined') {
+                window.location.href = '/auth';
+            }
         }
 
         let errorMessage = `API Error ${response.status}`;
         try {
             const errorData = await response.json();
-            // Try common single-value keys first
             if (errorData.detail) {
                 errorMessage = errorData.detail;
             } else if (errorData.error) {
@@ -92,7 +95,6 @@ export async function apiFetch<T = any>(
                     ? errorData.non_field_errors[0]
                     : errorData.non_field_errors;
             } else {
-                // DRF field-level errors: {"email": ["Already exists."], "otp": ["Required."]}
                 const firstKey = Object.keys(errorData)[0];
                 if (firstKey) {
                     const val = errorData[firstKey];
@@ -126,8 +128,8 @@ export const api = {
             apiFetch('/auth/change-password/', { method: 'POST', body: JSON.stringify(data) }),
         deleteAccount: (data: { password: string }) =>
             apiFetch('/auth/delete-account/', { method: 'POST', body: JSON.stringify(data) }),
-        refreshToken: (refresh: string) =>
-            apiFetch('/auth/token/refresh/', { method: 'POST', body: JSON.stringify({ refresh }), skipAuth: true }),
+        refreshToken: () =>
+            apiFetch('/auth/token/refresh/', { method: 'POST', skipAuth: true }),
         passwordResetRequest: (data: { email: string }) =>
             apiFetch<{ reset_token: string }>('/auth/password-reset/', { method: 'POST', body: JSON.stringify(data), skipAuth: true }),
         passwordResetConfirm: (data: { reset_token: string; otp: string; new_password: string }) =>
@@ -162,12 +164,12 @@ export const api = {
             apiFetch('/friends/unfriend/', { method: 'POST', body: JSON.stringify({ user_id }) }),
         block: (user_id: string | number) =>
             apiFetch('/friends/block/', { method: 'POST', body: JSON.stringify({ user_id }) }),
-        reportAndBlock: (data: { 
-            user_id: string | number; 
-            reason: string; 
-            report_type: string; 
-            severity: string; 
-            block_user: boolean 
+        reportAndBlock: (data: {
+            user_id: string | number;
+            reason: string;
+            report_type: string;
+            severity: string;
+            block_user: boolean
         }) =>
             apiFetch('/friends/report_and_block/', { method: 'POST', body: JSON.stringify(data) }),
         unblock: (user_id: string | number) =>

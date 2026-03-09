@@ -13,6 +13,7 @@ import { useRouter } from 'next/navigation';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { prewarmPermissions, clearPrewarmedTracks } from '../lib/videoUtils';
 import { notifyMessagesRead } from '../hooks/useUnreadMessages';
+import { getAccessToken } from '../lib/tokenUtils';
 
 // VideoCall uses browser APIs — SSR must be disabled
 const VideoCall = dynamic(
@@ -245,16 +246,33 @@ export function ChatPage() {
   useEffect(() => { loadThreads(); }, [loadThreads]);
 
   // ── WebSocket ─────────────────────────────────────────────────────────────
-  const getWsUrl = useCallback(() => {
-    if (!user?.id || typeof window === 'undefined') return null;
-    let apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://dev.projectyard.top';
-    apiUrl = apiUrl.replace(/\/+$/, '');
-    if (apiUrl.endsWith('/api')) apiUrl = apiUrl.slice(0, -4);
-    const wsBase = apiUrl.replace('http://', 'ws://').replace('https://', 'wss://');
-    return `${wsBase}/ws/chat/?token=${localStorage.getItem('access_token')}`;
+  const [wsUrl, setWsUrl] = useState<string | null>(null);
+
+  // Fetch access token from cookie and build WebSocket URL
+  useEffect(() => {
+    if (!user?.id || typeof window === 'undefined') {
+      setWsUrl(null);
+      return;
+    }
+
+    const buildWsUrl = async () => {
+      const token = await getAccessToken();
+      if (!token) {
+        setWsUrl(null);
+        return;
+      }
+
+      let apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://dev.projectyard.top';
+      apiUrl = apiUrl.replace(/\/+$/, '');
+      if (apiUrl.endsWith('/api')) apiUrl = apiUrl.slice(0, -4);
+      const wsBase = apiUrl.replace('http://', 'ws://').replace('https://', 'wss://');
+      setWsUrl(`${wsBase}/ws/chat/?token=${token}`);
+    };
+
+    buildWsUrl();
   }, [user?.id]);
 
-  const { sendMessage, client } = useWebSocket(getWsUrl());
+  const { sendMessage, client } = useWebSocket(wsUrl);
 
   // ── WebSocket message handler ─────────────────────────────────────────────
   // NOTE: do NOT add track refs to deps — they are mutable refs (stable)
@@ -375,7 +393,7 @@ export function ChatPage() {
           setThreads(prev => {
             const exists = prev.some(t => String(t.partner.id) === msgPartnerId);
             if (!exists) { loadThreads(); return prev; }
-            
+
             const updatedThreads = prev.map(t => String(t.partner.id) === msgPartnerId ? {
               ...t,
               last_message: newMsg.content,
@@ -384,13 +402,13 @@ export function ChatPage() {
               unread: senderStr === String(user?.id) ? t.unread
                 : (activeThreadRef.current && String(activeThreadRef.current.partner.id) === msgPartnerId ? 0 : t.unread + 1),
             } : t);
-            
+
             // If unread count increased, notify sidebar
-            if (senderStr !== String(user?.id) && 
-                !(activeThreadRef.current && String(activeThreadRef.current.partner.id) === msgPartnerId)) {
+            if (senderStr !== String(user?.id) &&
+              !(activeThreadRef.current && String(activeThreadRef.current.partner.id) === msgPartnerId)) {
               notifyMessagesRead();
             }
-            
+
             return updatedThreads;
           });
         }
@@ -429,7 +447,7 @@ export function ChatPage() {
       setMessages(prev => prev.map(m =>
         ids.includes(String(m.id)) ? { ...m, is_read: true } : m
       ));
-      
+
       // Notify that messages have been read
       notifyMessagesRead();
     }
@@ -759,8 +777,8 @@ export function ChatPage() {
                   name: activeThread.partner.name || activeThread.partner.username || 'Unknown',
                   avatar: activeThread.partner.avatar || undefined,
                   status: getStatus(
-                    activeThread.partner.id, 
-                    activeThread.partner, 
+                    activeThread.partner.id,
+                    activeThread.partner,
                     friendIds.has(String(activeThread.partner.id)),
                     blockedIds.has(String(activeThread.partner.id))
                   ) as any,
