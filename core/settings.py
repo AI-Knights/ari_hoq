@@ -112,6 +112,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # ---- Django REST Framework ----
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
+        'api.authentication.CookieJWTAuthentication',
         'rest_framework_simplejwt.authentication.JWTAuthentication',
         'rest_framework.authentication.SessionAuthentication',
     ],
@@ -144,7 +145,15 @@ EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'no-reply@projectyard.top')
 
 # ---- CORS ----
-CORS_ALLOW_ALL_ORIGINS = True  # Development only
+# IMPORTANT: CORS_ALLOW_ALL_ORIGINS cannot be used with CORS_ALLOW_CREDENTIALS=True.
+# Browsers reject the combination. Always list explicit origins.
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'https://dev.projectyard.top',
+    # Add your production frontend domain here, e.g.:
+    # 'https://yourapp.com',
+]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = [
     'accept',

@@ -1,6 +1,7 @@
 """
 Authentication and API views — rb-woodroff CBV pattern.
 Uses get_user_model(), CustomRefreshToken, OTP via email_service.
+Production-grade: tokens are stored in httpOnly cookies, never in response bodies.
 """
 
 from rest_framework import generics, status, permissions, filters, viewsets
@@ -11,6 +12,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
 from django.db.models import Q
 from django.utils import timezone
+from django.conf import settings as djsettings
 
 from .tokens import CustomRefreshToken
 from .email_service import send_otp_email, send_welcome_email
@@ -24,6 +26,40 @@ from .serializers import (
 )
 
 User = get_user_model()
+
+
+# ---------------------------------------------------------------------------
+# Cookie helper — centralised secure cookie config
+# ---------------------------------------------------------------------------
+_ACCESS_MAX_AGE  = 60 * 60          # 1 hour  (matches SIMPLE_JWT ACCESS_TOKEN_LIFETIME)
+_REFRESH_MAX_AGE = 60 * 60 * 24 * 30  # 30 days (matches SIMPLE_JWT REFRESH_TOKEN_LIFETIME)
+
+
+def _set_auth_cookies(response, access_token: str, refresh_token: str) -> None:
+    """Attach access + refresh tokens as httpOnly, SameSite=Lax cookies."""
+    is_secure = not getattr(djsettings, 'DEBUG', True)
+    common = dict(
+        httponly=True,
+        secure=is_secure,
+        samesite='Lax',
+        path='/',
+    )
+    response.set_cookie('access_token',  access_token,  max_age=_ACCESS_MAX_AGE,  **common)
+    response.set_cookie('refresh_token', refresh_token, max_age=_REFRESH_MAX_AGE, **common)
+
+
+def _clear_auth_cookies(response) -> None:
+    """Wipe both auth cookies from the browser."""
+    is_secure = not getattr(djsettings, 'DEBUG', True)
+    common = dict(
+        httponly=True,
+        secure=is_secure,
+        samesite='Lax',
+        path='/',
+        max_age=0,
+    )
+    response.set_cookie('access_token',  '', **common)
+    response.set_cookie('refresh_token', '', **common)
 
 
 # ---------------------------------------------------------------------------
@@ -78,7 +114,7 @@ class RegisterView(generics.CreateAPIView):
 
 
 class VerifyOTPView(APIView):
-    """Step 2: Verify OTP, activate account, return JWT tokens."""
+    """Step 2: Verify OTP, activate account, set httpOnly auth cookies."""
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
@@ -93,20 +129,19 @@ class VerifyOTPView(APIView):
         user.save()
         otp_instance.delete()
 
-        # Welcome email (async)
+        # Welcome email
         try:
             send_welcome_email(user)
         except Exception:
             pass
 
         refresh = CustomRefreshToken.for_user(user)
-        return Response({
+        response = Response({
             'message': 'Email verified. Welcome to QuranPartners!',
-            'email': user.email,
-            'access': str(refresh.access_token),
-            'refresh': str(refresh),
             'user': UserSerializer(user).data,
         }, status=status.HTTP_200_OK)
+        _set_auth_cookies(response, str(refresh.access_token), str(refresh))
+        return response
 
 
 class SendOTPView(APIView):
@@ -133,6 +168,7 @@ class SendOTPView(APIView):
 
 
 class LoginView(APIView):
+    """Authenticate user and set httpOnly JWT cookies. Tokens are NOT in the response body."""
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
@@ -140,26 +176,52 @@ class LoginView(APIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data['user']
         refresh = CustomRefreshToken.for_user(user)
-        return Response({
-            'access': str(refresh.access_token),
-            'refresh': str(refresh),
-            'user': UserSerializer(user).data,
-        })
+        response = Response({'user': UserSerializer(user).data})
+        _set_auth_cookies(response, str(refresh.access_token), str(refresh))
+        return response
 
 
 class LogoutView(APIView):
-    """Blacklist the refresh token on logout."""
+    """Blacklist refresh token (read from cookie) and clear both auth cookies."""
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
+        refresh_token = request.COOKIES.get('refresh_token')
         try:
-            refresh_token = request.data.get('refresh')
             if refresh_token:
                 token = RefreshToken(refresh_token)
                 token.blacklist()
-            return Response({'message': 'Logged out successfully.'})
         except Exception:
-            return Response({'error': 'Invalid token.'}, status=status.HTTP_400_BAD_REQUEST)
+            pass  # Expired / already blacklisted — still clear cookies
+        response = Response({'message': 'Logged out successfully.'})
+        _clear_auth_cookies(response)
+        return response
+
+
+class CookieTokenRefreshView(APIView):
+    """Read refresh_token cookie → issue new access_token cookie. Replaces simplejwt TokenRefreshView."""
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        refresh_token = request.COOKIES.get('refresh_token')
+        if not refresh_token:
+            return Response({'error': 'No refresh token cookie.'}, status=status.HTTP_401_UNAUTHORIZED)
+        try:
+            old_refresh = RefreshToken(refresh_token)
+            # ROTATE_REFRESH_TOKENS=True means calling access_token rotates it
+            new_access = str(old_refresh.access_token)
+            new_refresh = str(old_refresh)  # rotated refresh
+
+            response = Response({'message': 'Token refreshed.'})
+            is_secure = not getattr(djsettings, 'DEBUG', True)
+            common = dict(httponly=True, secure=is_secure, samesite='Lax', path='/')
+            response.set_cookie('access_token',  new_access,  max_age=_ACCESS_MAX_AGE,  **common)
+            response.set_cookie('refresh_token', new_refresh, max_age=_REFRESH_MAX_AGE, **common)
+            return response
+        except Exception:
+            response = Response({'error': 'Invalid or expired refresh token.'}, status=status.HTTP_401_UNAUTHORIZED)
+            _clear_auth_cookies(response)
+            return response
 
 
 class ProfileView(generics.RetrieveUpdateAPIView):
