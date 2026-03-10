@@ -46,14 +46,6 @@ export function Footer() {
               </li>
               <li>
                 <Link
-                  href="/about"
-                  className="hover:text-[#D4AF37] transition-colors">
-
-                  Success Stories
-                </Link>
-              </li>
-              <li>
-                <Link
                   href="/auth"
                   className="hover:text-[#D4AF37] transition-colors">
 
@@ -82,22 +74,6 @@ export function Footer() {
                   Contact
                 </Link>
               </li>
-              <li>
-                <Link
-                  href="/about"
-                  className="hover:text-[#D4AF37] transition-colors">
-
-                  Help Center
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/about"
-                  className="hover:text-[#D4AF37] transition-colors">
-
-                  Blog
-                </Link>
-              </li>
             </ul>
           </div>
 
@@ -118,14 +94,6 @@ export function Footer() {
                   className="hover:text-[#D4AF37] transition-colors">
 
                   Terms of Service
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/about"
-                  className="hover:text-[#D4AF37] transition-colors">
-
-                  Cookie Policy
                 </Link>
               </li>
             </ul>

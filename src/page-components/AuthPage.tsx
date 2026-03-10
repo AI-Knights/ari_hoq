@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { Mail, Lock, ArrowRight, RefreshCw, ShieldCheck, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, ArrowRight, RefreshCw, ShieldCheck, Eye, EyeOff, Check, X as XIcon } from 'lucide-react';
 
 type Step = 'login' | 'signup' | 'verify';
 
@@ -17,13 +17,6 @@ export function AuthPage() {
 
   const [step, setStep] = useState<Step>('login');
   const [pendingEmail, setPendingEmail] = useState('');
-
-  // Redirect authenticated users to dashboard
-  useEffect(() => {
-    if (user) {
-      router.push('/dashboard');
-    }
-  }, [user, router]);
 
   // Start on signup tab if ?tab=signup is in the URL
   useEffect(() => {
@@ -59,13 +52,23 @@ export function AuthPage() {
     }
   };
 
+  const passwordCriteria = [
+    { label: '8+ characters', met: password.length >= 8 },
+    { label: 'Uppercase letter', met: /[A-Z]/.test(password) },
+    { label: 'Lowercase letter', met: /[a-z]/.test(password) },
+    { label: 'Number', met: /\d/.test(password) },
+    { label: 'Special character', met: /[()[\]{}|\\`~!@#$%^&*_\-+=;:'",<>./?]/.test(password) },
+  ];
+  const allCriteriaMet = passwordCriteria.every(c => c.met);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
     try {
-      const user = await login(email, password);
-      if (user.role === 'admin') {
+      const loggedInUser = await login(email, password);
+      // User is now set in AuthContext — push directly to avoid refresh flash
+      if (loggedInUser.role === 'admin') {
         router.push('/admin');
       } else {
         router.push('/dashboard');
@@ -85,8 +88,10 @@ export function AuthPage() {
       setError('Passwords do not match.');
       return;
     }
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters.');
+
+    // Strict password validation
+    if (!allCriteriaMet) {
+      setError('Please ensure your password meets all requirements.');
       return;
     }
 
@@ -110,8 +115,9 @@ export function AuthPage() {
     setError('');
     setIsLoading(true);
     try {
-      const user = await verifyEmail(pendingEmail, code);
-      if (user.role === 'admin') {
+      const verifiedUser = await verifyEmail(pendingEmail, code);
+      // User is now set in AuthContext — push directly to avoid refresh flash
+      if (verifiedUser.role === 'admin') {
         router.push('/admin');
       } else {
         router.push('/dashboard');
@@ -268,6 +274,28 @@ export function AuthPage() {
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
                     required
                   />
+
+                  {/* Password Feedback */}
+                  {password.length > 0 && (
+                    <div className="bg-theme-bg-elevated p-3 rounded-lg border border-theme-border text-xs space-y-2 mt-2">
+                      <p className="font-semibold text-theme-text-secondary mb-1">Password requirements:</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {passwordCriteria.map((c, idx) => (
+                          <div key={idx} className="flex items-center gap-2">
+                            {c.met ? (
+                              <Check className="w-3 h-3 text-green-500" />
+                            ) : (
+                              <XIcon className="w-3 h-3 text-red-400" />
+                            )}
+                            <span className={c.met ? "text-green-500" : "text-theme-text-muted"}>
+                              {c.label}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <Input
                     label="Confirm Password"
                     type={showConfirmPassword ? 'text' : 'password'}

@@ -14,9 +14,14 @@ import { useAuth } from '../contexts/AuthContext';
 import { api } from '../lib/api';
 import { SearchableSelect } from '../components/ui/SearchableSelect';
 import { LANGUAGES, TIMEZONES, LOCATIONS } from '../constants/languages-timezones';
+import { updateProfileServerAction, changePasswordServerAction, deleteAccountServerAction } from '../lib/actions/profile';
 
-export function ProfilePage() {
+export function ProfilePage({ initialUser }: { initialUser?: any }) {
   const { user, updateUser, logout } = useAuth();
+  
+  // Use initialUser from Server Component if available, otherwise fallback to AuthContext
+  const activeUser = initialUser || user;
+
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState('');
@@ -39,14 +44,14 @@ export function ProfilePage() {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
-  // Form state initialized from user context
-  const [name, setName] = useState(user?.name || '');
-  const [level, setLevel] = useState(user?.level || '');
-  const [bio, setBio] = useState((user as any)?.bio || '');
-  const [location, setLocation] = useState((user as any)?.location || '');
-  const [timezone, setTimezone] = useState((user as any)?.timezone || '');
-  const [primaryLanguage, setPrimaryLanguage] = useState((user as any)?.primary_language || '');
-  const [gender, setGender] = useState((user as any)?.gender || '');
+  // Form state initialized from activeUser
+  const [name, setName] = useState(activeUser?.name || activeUser?.full_name || '');
+  const [level, setLevel] = useState(activeUser?.level || '');
+  const [bio, setBio] = useState(activeUser?.bio || '');
+  const [location, setLocation] = useState(activeUser?.location || '');
+  const [timezone, setTimezone] = useState(activeUser?.timezone || '');
+  const [primaryLanguage, setPrimaryLanguage] = useState(activeUser?.primary_language || '');
+  const [gender, setGender] = useState(activeUser?.gender || '');
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -59,13 +64,13 @@ export function ProfilePage() {
 
   // Determine if there are any unsaved changes
   const hasChanges =
-    name !== (user?.name || '') ||
-    level !== (user?.level || '') ||
-    bio !== ((user as any)?.bio || '') ||
-    location !== ((user as any)?.location || '') ||
-    timezone !== ((user as any)?.timezone || '') ||
-    primaryLanguage !== ((user as any)?.primary_language || '') ||
-    gender !== ((user as any)?.gender || '') ||
+    name !== (activeUser?.name || activeUser?.full_name || '') ||
+    level !== (activeUser?.level || '') ||
+    bio !== (activeUser?.bio || '') ||
+    location !== (activeUser?.location || '') ||
+    timezone !== (activeUser?.timezone || '') ||
+    primaryLanguage !== (activeUser?.primary_language || '') ||
+    gender !== (activeUser?.gender || '') ||
     avatarFile !== null;
 
   const handleChangePassword = async () => {
@@ -88,7 +93,9 @@ export function ProfilePage() {
     
     setIsChangingPassword(true);
     try {
-      await api.auth.changePassword({ old_password: oldPassword, new_password: newPassword });
+      const result = await changePasswordServerAction({ old_password: oldPassword, new_password: newPassword });
+      if (!result.success) throw new Error(result.error);
+      
       setShowPasswordModal(false);
       setOldPassword('');
       setNewPassword('');
@@ -112,7 +119,9 @@ export function ProfilePage() {
     
     setIsDeleting(true);
     try {
-      await api.auth.deleteAccount({ password: deletePassword });
+      const result = await deleteAccountServerAction({ password: deletePassword });
+      if (!result.success) throw new Error(result.error);
+      
       logout();
       window.location.href = '/auth';
     } catch (err: any) {
@@ -129,37 +138,34 @@ export function ProfilePage() {
     setSaveError('');
     setSaved(false);
     try {
-      let payload: any;
+      const formData = new FormData();
+      formData.append('full_name', name);
+      formData.append('username', name);
+      formData.append('level', level);
+      formData.append('bio', bio);
+      formData.append('location', location);
+      formData.append('timezone', timezone);
+      formData.append('primary_language', primaryLanguage);
+      formData.append('gender', gender);
       if (avatarFile) {
-        payload = new FormData();
-        payload.append('full_name', name);
-        payload.append('username', name);
-        payload.append('level', level);
-        payload.append('bio', bio);
-        payload.append('location', location);
-        payload.append('timezone', timezone);
-        payload.append('primary_language', primaryLanguage);
-        payload.append('gender', gender);
-        payload.append('avatar', avatarFile);
-      } else {
-        payload = {
-          full_name: name,
-          username: name,
-          level,
-          bio,
-          location,
-          timezone,
-          primary_language: primaryLanguage,
-          gender,
-        };
+        formData.append('avatar', avatarFile);
       }
 
-      const updatedUser = await api.auth.updateProfile(payload);
+      const result = await updateProfileServerAction(formData);
+      
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+
+      const updatedUser = result.data as any;
+
+      // Update local client authentication context
       updateUser({
         ...updatedUser,
         name: updatedUser.full_name || updatedUser.username || name,
-        avatar: avatarPreview || updatedUser.avatar || user?.avatar,
+        avatar: avatarPreview || updatedUser.avatar || activeUser?.avatar,
       });
+      
       setAvatarFile(null); // Clear the selected file to reset "hasChanges" state
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);

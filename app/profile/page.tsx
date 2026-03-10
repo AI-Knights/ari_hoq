@@ -1,12 +1,7 @@
-'use client';
-
 import { ProfilePage } from '../../src/page-components/ProfilePage';
-import { ProtectedRoute } from '../../src/components/layout/ProtectedRoute';
+import { serverApi } from '../../src/lib/server-api';
 
-export default function Profile() {
-    return (
-        <ProtectedRoute>
-            <ProfilePage />
-        </ProtectedRoute>
-    );
+export default async function Profile() {
+    const res = await serverApi.get('/auth/me/');
+    return <ProfilePage initialUser={res.success ? res.data : null} />;
 }

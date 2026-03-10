@@ -51,7 +51,15 @@ function makeChannelName(idA: string | number, idB: string | number): string {
   return `call${first}${second}`;
 }
 
-export function ChatPage() {
+export function ChatPage({
+  initialThreadsData,
+  initialFriendsData,
+  initialBlockedData
+}: {
+  initialThreadsData?: any,
+  initialFriendsData?: any,
+  initialBlockedData?: any
+}) {
   const router = useRouter();
   const { user } = useAuth();
   const { getStatus } = useUserStatus();
@@ -60,7 +68,7 @@ export function ChatPage() {
   const [threads, setThreads] = useState<ConversationThread[]>([]);
   const [activeThread, setActiveThread] = useState<ConversationThread | null>(null);
   const [messages, setMessages] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!initialThreadsData);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
@@ -184,13 +192,8 @@ export function ChatPage() {
   useEffect(() => { outgoingCallRef.current = outgoingCall; }, [outgoingCall]);
 
   // ── Data loading ──────────────────────────────────────────────────────────
-  const loadThreads = useCallback(async () => {
-    try {
-      const [data, friendsData, blockedData] = await Promise.all([
-        api.messages.threads(),
-        api.friends.list(),
-        api.friends.listBlocked()
-      ]);
+  
+  const processThreadsData = useCallback((data: any, friendsData: any, blockedData: any) => {
       setThreads(Array.isArray(data) ? data : []);
       const myId = user?.id;
       const friendships = Array.isArray(friendsData) ? friendsData : (friendsData?.results ?? []);
@@ -207,13 +210,23 @@ export function ChatPage() {
       const blocks = Array.isArray(blockedData) ? blockedData : (blockedData?.results ?? []);
       blocks.forEach((u: any) => bIds.add(String(u.id)));
       setBlockedIds(bIds);
+  }, [user?.id]);
 
+  const loadThreads = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const [data, friendsData, blockedData] = await Promise.all([
+        api.messages.threads(),
+        api.friends.list(),
+        api.friends.listBlocked()
+      ]);
+      processThreadsData(data, friendsData, blockedData);
     } catch (err) {
       console.error('Failed to load threads', err);
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id]);
+  }, [processThreadsData]);
 
   const loadMessages = useCallback(async (partnerId: string | number, startOffset = 0) => {
     setIsLoadingMessages(true);
@@ -243,7 +256,13 @@ export function ChatPage() {
     await loadMessages(activeThread.partner.id, next);
   };
 
-  useEffect(() => { loadThreads(); }, [loadThreads]);
+  useEffect(() => { 
+    if (initialThreadsData || initialFriendsData || initialBlockedData) {
+      processThreadsData(initialThreadsData || [], initialFriendsData || [], initialBlockedData || []);
+    } else {
+      loadThreads(); 
+    }
+  }, [initialThreadsData, initialFriendsData, initialBlockedData, processThreadsData, loadThreads]);
 
   // ── WebSocket ─────────────────────────────────────────────────────────────
   const [wsUrl, setWsUrl] = useState<string | null>(null);
@@ -262,7 +281,7 @@ export function ChatPage() {
         return;
       }
 
-      let apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://dev.projectyard.top';
+      let apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
       apiUrl = apiUrl.replace(/\/+$/, '');
       if (apiUrl.endsWith('/api')) apiUrl = apiUrl.slice(0, -4);
       const wsBase = apiUrl.replace('http://', 'ws://').replace('https://', 'wss://');

@@ -1,12 +1,17 @@
-'use client';
-
 import { FriendsPage } from '../../src/page-components/FriendsPage';
-import { ProtectedRoute } from '../../src/components/layout/ProtectedRoute';
+import { serverApi } from '../../src/lib/server-api';
 
-export default function Friends() {
+export default async function Friends() {
+    // Fetch data securely on the Next.js server before rendering
+    const [friendsRes, blockedRes] = await Promise.all([
+        serverApi.get('/friends/list/'),
+        serverApi.get('/friends/blocked/')
+    ]);
+
     return (
-        <ProtectedRoute>
-            <FriendsPage />
-        </ProtectedRoute>
+        <FriendsPage 
+            initialFriendsData={friendsRes.success ? friendsRes.data : []} 
+            initialBlockedData={blockedRes.success ? blockedRes.data : []} 
+        />
     );
 }

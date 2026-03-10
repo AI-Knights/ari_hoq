@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { api } from '../lib/api';
 
 /**
  * Production-grade AuthContext.
@@ -67,7 +68,21 @@ async function authFetch(path: string, init: RequestInit = {}) {
         let msg = `Error ${res.status}`;
         try {
             const err = await res.json();
-            msg = err.detail ?? err.error ?? err.message ?? msg;
+            if (err.non_field_errors && Array.isArray(err.non_field_errors)) {
+                msg = err.non_field_errors[0];
+            } else if (err.detail) {
+                msg = err.detail;
+            } else if (err.error) {
+                msg = err.error;
+            } else if (err.message) {
+                msg = err.message;
+            } else if (typeof err === 'object') {
+                // Handle field-level DRF errors like {"password": ["Must be 8 chars"]}
+                const firstKey = Object.keys(err)[0];
+                if (firstKey && Array.isArray(err[firstKey])) {
+                    msg = err[firstKey][0];
+                }
+            }
         } catch { /* non-JSON */ }
         throw new Error(msg);
     }
@@ -88,7 +103,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 if (data?.user) {
                     // Session route only has JWT claims — fetch full profile for extra fields
                     try {
-                        const profile = await authFetch('/api/proxy/auth/me');
+                        const profile = await api.auth.me();
                         setUser(mapUser(profile));
                     } catch {
                         setUser(mapUser(data.user));
@@ -103,11 +118,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const register = useCallback(async (email: string, password: string, username?: string) => {
-        await authFetch('/api/auth/register', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password, username }),
-        });
+        const { registerAction } = await import('../lib/actions/auth');
+        const res = await registerAction({ email, password, username });
+        if (!res.success) throw new Error(res.error);
         return { email };
     }, []);
 
@@ -124,29 +137,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const resendCode = useCallback(async (email: string) => {
-        await authFetch('/api/proxy/auth/resend-code', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email }),
-        });
+        await api.auth.resendCode({ email });
     }, []);
 
     const login = useCallback(async (email: string, password: string) => {
-        const data = await authFetch('/api/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password }),
-        });
+        const { loginAction } = await import('../lib/actions/auth');
+        
+        const formData = new FormData();
+        formData.append('email', email);
+        formData.append('password', password);
+        
+        const res = await loginAction(formData);
+        if (!res.success) throw new Error(res.error);
 
+        const data = res.data as any;
         const mapped = mapUser(data.user);
         setUser(mapped);
         return mapped;
     }, []);
 
     const logout = useCallback(async () => {
-        try {
-            await authFetch('/api/auth/logout', { method: 'POST' });
-        } catch { /* ignore — cookies are always cleared */ }
+        const { logoutAction } = await import('../lib/actions/auth');
+        await logoutAction(); // Server action handles cookie deletion and redirect
         setUser(null);
     }, []);
 

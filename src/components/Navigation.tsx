@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
@@ -16,6 +16,18 @@ export function Navigation() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const router = useRouter();
+  const pathname = usePathname();
+
+  // Helper function to determine if a link is active
+  const isActive = (path: string) => pathname === path;
+
+  // Base link styles
+  const getLinkClass = (path: string) => {
+    return `transition-colors text-sm font-medium ${isActive(path)
+      ? 'text-[#D4AF37]'
+      : 'text-theme-text-secondary hover:text-[#D4AF37]'
+      }`;
+  };
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 50);
@@ -24,9 +36,16 @@ export function Navigation() {
   }, []);
 
   const scrollToSection = (id: string) => {
-    const element = document.getElementById(id);
-    if (element) element.scrollIntoView({ behavior: 'smooth' });
     setIsMobileMenuOpen(false);
+    if (pathname !== '/') {
+      router.push(`/#${id}`);
+      return;
+    }
+    const element = document.getElementById(id);
+    if (element) {
+      // Need a small timeout if just mounted, but since we are already on '/', it's immediate
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
   };
 
   return (
@@ -58,17 +77,17 @@ export function Navigation() {
         <div className="hidden md:flex items-center space-x-4 lg:space-x-8">
           <button
             onClick={() => scrollToSection('how-it-works')}
-            className="text-theme-text-secondary hover:text-theme-text transition-colors text-sm font-medium whitespace-nowrap"
+            className={`transition-colors text-sm font-medium whitespace-nowrap text-theme-text-secondary hover:text-[#D4AF37]`}
           >
             How it Works
           </button>
-          <Link href="/about" className="text-theme-text-secondary hover:text-theme-text transition-colors text-sm font-medium">
+          <Link href="/about" className={getLinkClass('/about')}>
             About
           </Link>
 
           {/* Login link — only when NOT signed in */}
           {!user && (
-            <Link href="/auth" className="text-theme-text-secondary hover:text-theme-text transition-colors text-sm font-medium">
+            <Link href="/auth" className={getLinkClass('/auth')}>
               Login
             </Link>
           )}
@@ -119,16 +138,16 @@ export function Navigation() {
               </div>
 
               <div className="flex flex-col p-4 space-y-2">
-                <button onClick={() => scrollToSection('how-it-works')} className="text-theme-text-secondary hover:text-theme-text py-3 px-2 text-left rounded-lg hover:bg-theme-hover transition-colors block w-full">
+                <button onClick={() => scrollToSection('how-it-works')} className="text-theme-text-secondary hover:text-[#D4AF37] py-3 px-2 text-left rounded-lg hover:bg-theme-hover transition-colors block w-full">
                   How it Works
                 </button>
-                <Link href="/about" className="text-theme-text-secondary hover:text-theme-text py-3 px-2 rounded-lg hover:bg-theme-hover transition-colors block" onClick={() => setIsMobileMenuOpen(false)}>
+                <Link href="/about" className={`${isActive('/about') ? 'text-[#D4AF37]' : 'text-theme-text-secondary hover:text-[#D4AF37]'} py-3 px-2 rounded-lg hover:bg-theme-hover transition-colors block`} onClick={() => setIsMobileMenuOpen(false)}>
                   About
                 </Link>
 
                 {/* Login — only when NOT signed in */}
                 {!user && (
-                  <Link href="/auth" className="text-theme-text-secondary hover:text-theme-text py-3 px-2 rounded-lg hover:bg-theme-hover transition-colors block" onClick={() => setIsMobileMenuOpen(false)}>
+                  <Link href="/auth" className={`${isActive('/auth') ? 'text-[#D4AF37]' : 'text-theme-text-secondary hover:text-[#D4AF37]'} py-3 px-2 rounded-lg hover:bg-theme-hover transition-colors block`} onClick={() => setIsMobileMenuOpen(false)}>
                     Login
                   </Link>
                 )}

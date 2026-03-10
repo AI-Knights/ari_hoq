@@ -8,7 +8,7 @@ import { Facebook, Twitter, Instagram, Linkedin, Mail, Phone, MapPin, Youtube } 
 
 export function NewFooter() {
     const { theme } = useTheme();
-    
+
     return (
         <>
             {/* Donation Section */}
@@ -91,7 +91,6 @@ export function NewFooter() {
                                     </button>
                                 </li>
                                 <li><Link href="/auth" className="hover:text-[#D4AF37] transition-colors">Find a Partner</Link></li>
-                                <li><Link href="/about" className="hover:text-[#D4AF37] transition-colors">Success Stories</Link></li>
                                 <li><Link href="/auth" className="hover:text-[#D4AF37] transition-colors">Get Started</Link></li>
                             </ul>
                         </div>
@@ -102,8 +101,6 @@ export function NewFooter() {
                             <ul className="space-y-4 text-sm text-theme-text-secondary">
                                 <li><Link href="/about" className="hover:text-[#D4AF37] transition-colors">About Us</Link></li>
                                 <li><Link href="/contact" className="hover:text-[#D4AF37] transition-colors">Contact</Link></li>
-                                <li><Link href="/about" className="hover:text-[#D4AF37] transition-colors">Help Center</Link></li>
-                                <li><Link href="/about" className="hover:text-[#D4AF37] transition-colors">Blog</Link></li>
                             </ul>
                         </div>
 
@@ -113,7 +110,6 @@ export function NewFooter() {
                             <ul className="space-y-4 text-sm text-theme-text-secondary">
                                 <li><Link href="/about" className="hover:text-[#D4AF37] transition-colors">Privacy Policy</Link></li>
                                 <li><Link href="/about" className="hover:text-[#D4AF37] transition-colors">Terms of Service</Link></li>
-                                <li><Link href="/about" className="hover:text-[#D4AF37] transition-colors">Cookie Policy</Link></li>
                                 <li><Link href="/contact" className="hover:text-[#D4AF37] transition-colors">Community Guidelines</Link></li>
                             </ul>
                         </div>

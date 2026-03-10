@@ -2,9 +2,7 @@ import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import { jwtDecode, JwtPayload } from 'jwt-decode';
 
-const DJANGO_API = process.env.NEXT_PUBLIC_API_URL
-    ? process.env.NEXT_PUBLIC_API_URL.replace(/\/+$/, '') + '/api'
-    : 'http://127.0.0.1:8000/api';
+const DJANGO_API = process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL.replace(/\/+$/, '')}/api` : 'http://127.0.0.1:8000/api';
 
 const ACCESS_MAX_AGE = 60 * 60;           // 1 hour
 const REFRESH_MAX_AGE = 60 * 60 * 24 * 30; // 30 days

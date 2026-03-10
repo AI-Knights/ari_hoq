@@ -23,7 +23,13 @@ interface FriendUser {
   message?: string;
 }
 
-export function FriendsPage() {
+export function FriendsPage({ 
+  initialFriendsData, 
+  initialBlockedData 
+}: { 
+  initialFriendsData?: any, 
+  initialBlockedData?: any 
+}) {
   const { user } = useAuth();
   const router = useRouter();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -32,7 +38,7 @@ export function FriendsPage() {
   const [sentRequests, setSentRequests] = useState<(FriendUser & { friendshipId: number; message?: string })[]>([]);
   const [blockedUsers, setBlockedUsers] = useState<FriendUser[]>([]);
   const [activeTab, setActiveTab] = useState<'friends' | 'requests' | 'blocked'>('friends');
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!initialFriendsData);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -41,12 +47,8 @@ export function FriendsPage() {
   const [isAdding, setIsAdding] = useState(false);
   const [addError, setAddError] = useState('');
 
-  const loadFriends = useCallback(async () => {
-    try {
-      const [data, blockedData] = await Promise.all([
-        api.friends.list(),
-        api.friends.listBlocked()
-      ]);
+  // A helper to process the raw friend/blocked arrays into UI state
+  const processFriendData = useCallback((data: any, blockedData: any) => {
       const friendships = Array.isArray(data) ? data : data.results ?? [];
       const blockedList = Array.isArray(blockedData) ? blockedData : blockedData.results ?? [];
 
@@ -89,16 +91,30 @@ export function FriendsPage() {
         status: u.status || 'offline',
         avatar: u.avatar || undefined,
       })));
+  }, [user?.id]);
+
+  const loadFriends = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const [data, blockedData] = await Promise.all([
+        api.friends.list(),
+        api.friends.listBlocked()
+      ]);
+      processFriendData(data, blockedData);
     } catch (err) {
       console.error('Failed to load friends', err);
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id]);
+  }, [processFriendData]);
 
   useEffect(() => {
-    loadFriends();
-  }, [loadFriends]);
+    if (initialFriendsData || initialBlockedData) {
+      processFriendData(initialFriendsData || [], initialBlockedData || []);
+    } else {
+      loadFriends();
+    }
+  }, [initialFriendsData, initialBlockedData, processFriendData, loadFriends]);
 
   const handleSearch = useCallback(async (q: string) => {
     setSearchQuery(q);

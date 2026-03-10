@@ -1,12 +1,9 @@
-'use client';
-
 import { DashboardHome } from '../../src/page-components/DashboardHome';
-import { ProtectedRoute } from '../../src/components/layout/ProtectedRoute';
+import { serverApi } from '../../src/lib/server-api';
 
-export default function Dashboard() {
-    return (
-        <ProtectedRoute>
-            <DashboardHome />
-        </ProtectedRoute>
-    );
+export default async function Dashboard() {
+    // Fetch dashboard stats on the server — pass null if auth not yet resolved
+    const res = await serverApi.get('/dashboard/stats/');
+
+    return <DashboardHome initialStats={res.success ? res.data : null} />;
 }

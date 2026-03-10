@@ -11,25 +11,17 @@
  * a new access_token cookie), then replays the original request.
  */
 
-const getApiBase = (): string => {
-    // In development and production, always use Next.js proxy to avoid CORS issues
-    // The proxy will forward requests to Django with proper cookie handling
-    if (typeof window !== 'undefined') {
-        // Client-side: use relative path to Next.js API proxy
-        return '/api/proxy';
-    }
-    
-    // Server-side: use full Django URL for Server Components
-    let url = process.env.NEXT_PUBLIC_API_URL;
-    if (url) {
-        url = url.replace(/\/+$/, '');
-        if (!url.endsWith('/api')) url += '/api';
-        return url;
-    }
-    return 'http://127.0.0.1:8000/api';
-};
-
-const API_BASE = getApiBase();
+/**
+ * Client-side API base.
+ *
+ * All browser-initiated requests go through /api/v/[...path] — a thin Next.js
+ * proxy that reads the httpOnly access_token cookie server-side and injects it
+ * as an Authorization: Bearer header before forwarding to Django.
+ *
+ * This avoids cross-origin cookie issues (browser can't send localhost:3000
+ * cookies to 127.0.0.1:8000) and keeps the token out of client JS entirely.
+ */
+const API_BASE = '/api/v';
 
 interface FetchOptions extends RequestInit {
     skipAuth?: boolean;
@@ -50,12 +42,8 @@ export async function apiFetch<T = any>(
         headers['Content-Type'] = 'application/json';
     }
 
-    // Remove trailing slash for Next.js catch-all route compatibility
-    // Next.js redirects /api/proxy/path/ to /api/proxy/path which can cause issues
-    const normalizedPath = path.endsWith('/') && path.length > 1 ? path.slice(0, -1) : path;
-
     // Always include credentials so httpOnly cookies are sent automatically
-    const response = await fetch(`${API_BASE}${normalizedPath}`, {
+    const response = await fetch(`${API_BASE}${path}`, {
         ...init,
         headers,
         credentials: 'include',
@@ -103,12 +91,17 @@ export async function apiFetch<T = any>(
                 }
             }
         } catch { /* non-JSON body */ }
+        
+        console.error(`[apiFetch Failed] URL: ${API_BASE}${path} | Status: ${response.status} | Error: ${errorMessage}`);
         throw new Error(errorMessage);
     }
 
     if (response.status === 204) return undefined as T;
     return response.json() as Promise<T>;
 }
+
+// Alias kept for backwards compatibility — proxy handles FormData streaming correctly now
+export const apiFetchDirect = apiFetch;
 
 export const api = {
     auth: {

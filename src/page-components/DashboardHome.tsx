@@ -29,13 +29,16 @@ interface DashboardStats {
   }>;
 }
 
-export function DashboardHome() {
+export function DashboardHome({ initialStats }: { initialStats?: any }) {
   const { user } = useAuth();
   const router = useRouter();
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  
+  // Use pre-fetched Server Component data if available
+  const [stats, setStats] = useState<DashboardStats | null>(initialStats || null);
+  const [isLoading, setIsLoading] = useState(!initialStats);
 
   const fetchStats = useCallback(async () => {
+    setIsLoading(true);
     try {
       const data = await api.dashboard.stats();
       setStats(data);
@@ -46,9 +49,12 @@ export function DashboardHome() {
     }
   }, []);
 
+  // Only fetch client-side if we didn't receive Server Component data
   useEffect(() => {
-    fetchStats();
-  }, [fetchStats]);
+    if (!initialStats) {
+      fetchStats();
+    }
+  }, [fetchStats, initialStats]);
 
   return (
     <DashboardLayout>

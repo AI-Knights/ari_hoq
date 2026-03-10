@@ -9,20 +9,22 @@ interface ProtectedRouteProps {
 }
 
 /**
- * Wraps a page and redirects to `/` if the user is not authenticated.
- * Shows a brief loading pulse while auth state is being resolved.
+ * Client-side auth guard. Shows a loading spinner while session is being
+ * resolved, then redirects to /auth if the user is not authenticated.
+ * The Next.js middleware handles server-side protection; this is a safety net.
  */
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
     const { user, isLoading } = useAuth();
     const router = useRouter();
 
     useEffect(() => {
+        // Only redirect AFTER we've finished checking — prevents flash redirects
         if (!isLoading && !user) {
-            router.replace('/');
+            router.replace('/auth');
         }
     }, [user, isLoading, router]);
 
-    // While auth is resolving, show a minimal skeleton
+    // Always show spinner while we are loading — prevents any content flash
     if (isLoading) {
         return (
             <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--theme-bg)' }}>
@@ -34,7 +36,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
         );
     }
 
-    // If not logged in, render nothing (redirect is in flight)
+    // If not logged in, render nothing while redirect is in flight
     if (!user) return null;
 
     return <>{children}</>;
