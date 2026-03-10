@@ -273,6 +273,7 @@ export function ProfilePage({ initialUser }: { initialUser?: any }) {
                     value={level}
                     onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setLevel(e.target.value)}
                     options={[
+                      { value: '', label: 'Select Level' },
                       { value: 'beginner', label: 'Beginner (Juz 30)' },
                       { value: 'intermediate', label: 'Intermediate (5-10 Juz)' },
                       { value: 'advanced', label: 'Advanced (15+ Juz)' },

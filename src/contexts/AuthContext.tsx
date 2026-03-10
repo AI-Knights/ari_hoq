@@ -162,14 +162,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(null);
     }, []);
 
-    const updateUser = useCallback((data: Partial<User> | FormData | object) => {
+    const updateUser = useCallback((data: any) => {
         if (data instanceof FormData) {
             const updates: Partial<User> = {};
-            const name = data.get('name');
+            const name = data.get('name') || data.get('full_name') || data.get('username');
             if (name) updates.name = name as string;
+            
+            // Map other common fields if they exist in FormData
+            ['level', 'bio', 'location', 'timezone', 'primary_language', 'gender'].forEach(field => {
+                const val = data.get(field);
+                if (val !== null) (updates as any)[field] = val as string;
+            });
+
             setUser(prev => prev ? { ...prev, ...updates } : null);
         } else {
-            setUser(prev => prev ? { ...prev, ...(data as Partial<User>) } : null);
+            // If the data looks like a raw backend response (has full_name or user_id), map it.
+            // Otherwise, treat it as a partial User object.
+            const isRawResponse = data.full_name !== undefined || data.username !== undefined || data.user_id !== undefined || data.id !== undefined;
+            
+            if (isRawResponse) {
+                const mapped = mapUser(data);
+                // Merge mapped updates into existing user state
+                setUser(prev => prev ? { ...prev, ...mapped } : mapped);
+            } else {
+                setUser(prev => prev ? { ...prev, ...(data as Partial<User>) } : null);
+            }
         }
     }, []);
 

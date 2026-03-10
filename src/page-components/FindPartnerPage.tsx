@@ -58,9 +58,18 @@ export function FindPartnerPage() {
     e.preventDefault();
     setError(null);
 
-    if (user && (!user.level || !user.primary_language || !user.timezone || !user.location || !user.bio)) {
-      setError("Please complete your profile (Level, Language, Timezone, Location, Bio) before looking for matches.");
-      return;
+    if (user) {
+      const missingFields = [];
+      if (!user.level) missingFields.push("Level");
+      if (!user.primary_language) missingFields.push("Primary Language");
+      if (!user.timezone) missingFields.push("Timezone");
+      if (!user.location) missingFields.push("Location");
+      if (!user.bio) missingFields.push("Bio");
+
+      if (missingFields.length > 0) {
+        setError(`Please complete your profile: ${missingFields.join(", ")} before looking for matches.`);
+        return;
+      }
     }
 
     setIsMatching(true);
