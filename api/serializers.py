@@ -66,7 +66,12 @@ class UserSerializer(serializers.ModelSerializer):
 
     def get_avatar(self, obj):
         if obj.avatar:
-            return obj.avatar.url
+            try:
+                if hasattr(obj.avatar, 'url'):
+                    return obj.avatar.url
+                return str(obj.avatar)
+            except Exception:
+                pass
         return None
 
     def get_availability(self, obj):
@@ -83,6 +88,11 @@ class RegisterSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True, min_length=8)
     full_name = serializers.CharField(max_length=100, required=False, default='')
     username = serializers.CharField(max_length=50, required=False, default='')
+
+    def validate_password(self, value):
+        from django.contrib.auth.password_validation import validate_password
+        validate_password(value)
+        return value
 
     def validate_email(self, value):
         value = value.lower().strip()
@@ -137,6 +147,11 @@ class ChangePasswordSerializer(serializers.Serializer):
     def validate_old_password(self, value):
         if not self.context['request'].user.check_password(value):
             raise serializers.ValidationError("Old password is incorrect.")
+        return value
+
+    def validate_new_password(self, value):
+        from django.contrib.auth.password_validation import validate_password
+        validate_password(value)
         return value
 
     def validate(self, data):

@@ -85,18 +85,32 @@ else:
             'BACKEND': 'channels.layers.InMemoryChannelLayer'
         }
     }
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+DB_NAME = os.environ.get('DB_NAME')
+if DB_NAME:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': DB_NAME,
+            'USER': os.environ.get('DB_USER', ''),
+            'PASSWORD': os.environ.get('DB_PASSWORD', ''),
+            'HOST': os.environ.get('DB_HOST', '127.0.0.1'),
+            'PORT': os.environ.get('DB_PORT', '5432'),
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator', 'OPTIONS': {'min_length': 8}},
     {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
+    {'NAME': 'api.validators.ComplexPasswordValidator'},
 ]
 
 LANGUAGE_CODE = 'en-us'
@@ -171,15 +185,15 @@ CORS_ALLOW_HEADERS = [
 import cloudinary
 
 cloudinary.config(
-    cloud_name=os.environ.get('CLOUD_NAME', 'dl83bpmyz'),
-    api_key=os.environ.get('CLOUDINARY_API_KEY', '269841578744222'),
-    api_secret=os.environ.get('CLOUDINARY_API_SECRET', 'azbrRHmoVJkN4Q2-vtr60P2Q8jw')
+    cloud_name=os.environ.get('CLOUD_NAME'),
+    api_key=os.environ.get('CLOUDINARY_API_KEY'),
+    api_secret=os.environ.get('CLOUDINARY_API_SECRET')
 )
 
 CLOUDINARY_STORAGE = {
-    'CLOUD_NAME': os.environ.get('CLOUD_NAME', 'dl83bpmyz'),
-    'API_KEY': os.environ.get('CLOUDINARY_API_KEY', '269841578744222'),
-    'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET', 'azbrRHmoVJkN4Q2-vtr60P2Q8jw'),
+    'CLOUD_NAME': os.environ.get('CLOUD_NAME'),
+    'API_KEY': os.environ.get('CLOUDINARY_API_KEY'),
+    'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET'),
 }
 STORAGES = {
     "default": {

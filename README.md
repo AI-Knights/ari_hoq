@@ -1,0 +1,1 @@
+uvicorn core.asgi:application --reload

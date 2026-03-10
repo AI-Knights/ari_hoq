@@ -224,9 +224,12 @@ class CookieTokenRefreshView(APIView):
             return response
 
 
+from rest_framework.parsers import MultiPartParser, FormParser
+
 class ProfileView(generics.RetrieveUpdateAPIView):
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticated]
+    parser_classes = (MultiPartParser, FormParser)
 
     def get_object(self):
         return self.request.user
@@ -241,10 +244,23 @@ class ProfileView(generics.RetrieveUpdateAPIView):
             except Exception:
                 pass # Fail silently if the image was already deleted or doesn't exist
 
+        print("--- UPDATE RECEIVED ---")
+        print("Keys present in request:", request.data.keys())
+        if 'avatar' in request.data:
+            print("Avatar value type:", type(request.data['avatar']))
+            
         for field in ['full_name', 'username', 'avatar', 'level', 'bio', 'location', 'timezone', 'primary_language', 'gender']:
             if field in request.data:
-                setattr(user, field, request.data[field])
-        user.save()
+                val = request.data[field]
+                setattr(user, field, val)
+        
+        try:
+            user.save()
+        except Exception as e:
+            # Catch cloudinary exceptions (e.g. Invalid image file, Empty file)
+            # or any database exceptions during save
+            return Response({'error': f'Failed to update profile: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+            
         user.last_active = timezone.now()
         user.save(update_fields=['last_active'])
         return Response(UserSerializer(user).data)
@@ -338,6 +354,15 @@ class SetNewPasswordView(APIView):
                 return Response({'error': 'OTP has expired.'}, status=status.HTTP_400_BAD_REQUEST)
         except OTP.DoesNotExist:
             return Response({'error': 'Invalid OTP.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            from django.contrib.auth.password_validation import validate_password
+            from django.core.exceptions import ValidationError as DjangoValidationError
+            validate_password(new_password)
+        except DjangoValidationError as e:
+            # Join all validation messages if there are multiple
+            err_msg = " ".join(e.messages)
+            return Response({'error': err_msg}, status=status.HTTP_400_BAD_REQUEST)
 
         user.set_password(new_password)
         user.save()
