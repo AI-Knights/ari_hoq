@@ -15,6 +15,7 @@ import { api } from '../lib/api';
 import { SearchableSelect } from '../components/ui/SearchableSelect';
 import { LANGUAGES, TIMEZONES, LOCATIONS } from '../constants/languages-timezones';
 import { updateProfileServerAction, changePasswordServerAction, deleteAccountServerAction } from '../lib/actions/profile';
+import { useLocationGuess } from '../hooks/useLocationGuess';
 
 export function ProfilePage({ initialUser }: { initialUser?: any }) {
   const { user, updateUser, logout } = useAuth();
@@ -52,6 +53,8 @@ export function ProfilePage({ initialUser }: { initialUser?: any }) {
   const [timezone, setTimezone] = useState(activeUser?.timezone || '');
   const [primaryLanguage, setPrimaryLanguage] = useState(activeUser?.primary_language || '');
   const [gender, setGender] = useState(activeUser?.gender || '');
+
+  const { recommendedTimezone } = useLocationGuess();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -257,6 +260,7 @@ export function ProfilePage({ initialUser }: { initialUser?: any }) {
                     options={TIMEZONES}
                     value={timezone}
                     onChange={setTimezone}
+                    recommendedValue={recommendedTimezone}
                   />
                 </div>
               </div>
@@ -274,10 +278,10 @@ export function ProfilePage({ initialUser }: { initialUser?: any }) {
                     onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setLevel(e.target.value)}
                     options={[
                       { value: '', label: 'Select Level' },
-                      { value: 'beginner', label: 'Beginner (Juz 30)' },
-                      { value: 'intermediate', label: 'Intermediate (5-10 Juz)' },
-                      { value: 'advanced', label: 'Advanced (15+ Juz)' },
-                      { value: 'hafiz', label: 'Hafiz (Revision)' },
+                      { value: 'beginner', label: 'Beginner (0-5 Parts)' },
+                      { value: 'intermediate', label: 'Intermediate (6-14 Parts)' },
+                      { value: 'advanced', label: 'Advanced (15-29 Parts)' },
+                      { value: 'hafiz', label: 'Hafiz (Completed All 30 Parts)' },
                     ]}
                   />
                   <SearchableSelect

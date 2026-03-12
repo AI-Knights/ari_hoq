@@ -39,6 +39,7 @@ export function FriendsPage({
   const [blockedUsers, setBlockedUsers] = useState<FriendUser[]>([]);
   const [activeTab, setActiveTab] = useState<'friends' | 'requests' | 'blocked'>('friends');
   const [isLoading, setIsLoading] = useState(!initialFriendsData);
+  const [localSearchQuery, setLocalSearchQuery] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -140,6 +141,7 @@ export function FriendsPage({
     setAddError('');
     try {
       await api.friends.sendRequest({ user_id: selectedAddUser.id, message: icebreaker.trim() });
+      await loadFriends();
       setIsAddModalOpen(false);
       setSelectedAddUser(null);
       setIcebreaker('');
@@ -303,6 +305,8 @@ export function FriendsPage({
                     placeholder="Search friends..."
                     leftIcon={<Search className="w-4 h-4" />}
                     className="bg-theme-input"
+                    value={localSearchQuery}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLocalSearchQuery(e.target.value)}
                   />
                 </div>
               </div>
@@ -313,7 +317,9 @@ export function FriendsPage({
                 </div>
               ) : (
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {friends.map((friend) => (
+                  {friends
+                    .filter(f => f.name.toLowerCase().includes(localSearchQuery.toLowerCase()))
+                    .map((friend) => (
                     <FriendCard
                       key={friend.id}
                       user={friend}
@@ -325,6 +331,11 @@ export function FriendsPage({
                       }}
                     />
                   ))}
+                  {friends.filter(f => f.name.toLowerCase().includes(localSearchQuery.toLowerCase())).length === 0 && (
+                      <p className="col-span-full text-center py-12 text-theme-text-secondary">
+                        No friends found matching "{localSearchQuery}".
+                      </p>
+                  )}
                 </div>
               )}
             </div>

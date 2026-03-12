@@ -4,7 +4,7 @@ import { serverApi } from '../../src/lib/server-api';
 export default async function Friends() {
     // Fetch data securely on the Next.js server before rendering
     const [friendsRes, blockedRes] = await Promise.all([
-        serverApi.get('/friends/list/'),
+        serverApi.get('/friends/'),
         serverApi.get('/friends/blocked/')
     ]);
 

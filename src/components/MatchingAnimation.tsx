@@ -42,7 +42,7 @@ export function MatchingAnimation({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 bg-theme-bg/95 backdrop-blur-md flex flex-col items-center justify-center"
+      className="fixed inset-0 z-50 bg-theme-bg flex flex-col items-center justify-center"
     >
       <div className="relative w-full max-w-lg aspect-square flex items-center justify-center">
         {/* Globe Container */}

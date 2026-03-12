@@ -102,47 +102,51 @@ export const LANGUAGES = [
     'Zulu'
 ].sort();
 
+const BASE_TIMEZONES = [
+    { offset: '-12:00', label: 'Baker Island' },
+    { offset: '-11:00', label: 'American Samoa' },
+    { offset: '-10:00', label: 'Hawaii' },
+    { offset: '-09:30', label: 'Marquesas Islands' },
+    { offset: '-09:00', label: 'Alaska' },
+    { offset: '-08:00', label: 'Pacific Time (US & Canada)' },
+    { offset: '-07:00', label: 'Mountain Time (US & Canada)' },
+    { offset: '-06:00', label: 'Central Time (US & Canada)' },
+    { offset: '-05:00', label: 'Eastern Time (US & Canada)' },
+    { offset: '-04:00', label: 'Atlantic Time (Canada)' },
+    { offset: '-03:30', label: 'Newfoundland' },
+    { offset: '-03:00', label: 'Buenos Aires, Brasilia' },
+    { offset: '-02:00', label: 'Mid-Atlantic' },
+    { offset: '-01:00', label: 'Azores' },
+    { offset: '+00:00', label: 'London, Dublin, Lisbon' },
+    { offset: '+01:00', label: 'Paris, Berlin, Rome' },
+    { offset: '+02:00', label: 'Cairo, Athens, Helsinki' },
+    { offset: '+03:00', label: 'Moscow, Istanbul, Riyadh' },
+    { offset: '+03:30', label: 'Tehran' },
+    { offset: '+04:00', label: 'Dubai, Baku' },
+    { offset: '+04:30', label: 'Kabul' },
+    { offset: '+05:00', label: 'Karachi, Tashkent' },
+    { offset: '+05:30', label: 'New Delhi, Mumbai, Kolkata' },
+    { offset: '+05:45', label: 'Kathmandu' },
+    { offset: '+06:00', label: 'Dhaka, Almaty' },
+    { offset: '+06:30', label: 'Yangon' },
+    { offset: '+07:00', label: 'Bangkok, Jakarta, Hanoi' },
+    { offset: '+08:00', label: 'Beijing, Singapore, Perth' },
+    { offset: '+08:45', label: 'Eucla' },
+    { offset: '+09:00', label: 'Tokyo, Seoul' },
+    { offset: '+09:30', label: 'Adelaide, Darwin' },
+    { offset: '+10:00', label: 'Sydney, Melbourne, Brisbane' },
+    { offset: '+10:30', label: 'Lord Howe Island' },
+    { offset: '+11:00', label: 'Solomon Islands' },
+    { offset: '+12:00', label: 'Fiji, Auckland' },
+    { offset: '+12:45', label: 'Chatham Islands' },
+    { offset: '+13:00', label: 'Tonga, Samoa' },
+    { offset: '+14:00', label: 'Line Islands' }
+];
+
 // All world timezones
-export const TIMEZONES = [
-    'UTC-12:00 (Baker Island)',
-    'UTC-11:00 (American Samoa)',
-    'UTC-10:00 (Hawaii)',
-    'UTC-09:30 (Marquesas Islands)',
-    'UTC-09:00 (Alaska)',
-    'UTC-08:00 (Pacific Time - US & Canada)',
-    'UTC-07:00 (Mountain Time - US & Canada)',
-    'UTC-06:00 (Central Time - US & Canada)',
-    'UTC-05:00 (Eastern Time - US & Canada)',
-    'UTC-04:00 (Atlantic Time - Canada)',
-    'UTC-03:30 (Newfoundland)',
-    'UTC-03:00 (Buenos Aires, Brasilia)',
-    'UTC-02:00 (Mid-Atlantic)',
-    'UTC-01:00 (Azores)',
-    'UTC+00:00 (London, Dublin, Lisbon)',
-    'UTC+01:00 (Paris, Berlin, Rome)',
-    'UTC+02:00 (Cairo, Athens, Helsinki)',
-    'UTC+03:00 (Moscow, Istanbul, Riyadh)',
-    'UTC+03:30 (Tehran)',
-    'UTC+04:00 (Dubai, Baku)',
-    'UTC+04:30 (Kabul)',
-    'UTC+05:00 (Karachi, Tashkent)',
-    'UTC+05:30 (New Delhi, Mumbai, Kolkata)',
-    'UTC+05:45 (Kathmandu)',
-    'UTC+06:00 (Dhaka, Almaty)',
-    'UTC+06:30 (Yangon)',
-    'UTC+07:00 (Bangkok, Jakarta, Hanoi)',
-    'UTC+08:00 (Beijing, Singapore, Perth)',
-    'UTC+08:45 (Eucla)',
-    'UTC+09:00 (Tokyo, Seoul)',
-    'UTC+09:30 (Adelaide, Darwin)',
-    'UTC+10:00 (Sydney, Melbourne, Brisbane)',
-    'UTC+10:30 (Lord Howe Island)',
-    'UTC+11:00 (Solomon Islands)',
-    'UTC+12:00 (Fiji, Auckland)',
-    'UTC+12:45 (Chatham Islands)',
-    'UTC+13:00 (Tonga, Samoa)',
-    'UTC+14:00 (Line Islands)'
-].sort();
+export const TIMEZONES = BASE_TIMEZONES.map(({ offset, label }) => 
+    `(GMT${offset}) ${label}`
+);
 
 // Comprehensive list of countries for location selection
 export const LOCATIONS = [

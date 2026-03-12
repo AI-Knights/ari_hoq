@@ -4,7 +4,7 @@ import { serverApi } from '../../src/lib/server-api';
 export default async function Chat() {
     const [threadsRes, friendsRes, blockedRes] = await Promise.all([
         serverApi.get('/messages/threads/'),
-        serverApi.get('/friends/list/'),
+        serverApi.get('/friends/'),
         serverApi.get('/friends/blocked/')
     ]);
 

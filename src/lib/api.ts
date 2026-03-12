@@ -135,10 +135,12 @@ export const api = {
             apiFetch('/availability/toggle/', { method: 'POST', body: JSON.stringify({ day_of_week, time_slot }) }),
     },
     match: {
-        find: (data: { level: string; language: string; timezone: string; goals: string }) =>
+        find: (data: { is_advanced: boolean; level?: string; language?: string; timezone?: string; goals?: string }) =>
             apiFetch('/match/', { method: 'POST', body: JSON.stringify(data) }),
         skip: (userId: string | number) =>
             apiFetch('/match/skip/', { method: 'POST', body: JSON.stringify({ user_id: userId }) }),
+        clearDeclined: () => 
+            apiFetch('/match/clear-declined/', { method: 'POST' }),
     },
     hifz: {
         list: () => apiFetch('/hifz/'),

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Search } from 'lucide-react';
 
 interface SearchableSelectProps {
@@ -9,15 +9,26 @@ interface SearchableSelectProps {
     onChange: (value: string) => void;
     placeholder: string;
     label: string;
+    recommendedValue?: string;
 }
 
-export function SearchableSelect({ options, value, onChange, placeholder, label }: SearchableSelectProps) {
+export function SearchableSelect({ options, value, onChange, placeholder, label, recommendedValue }: SearchableSelectProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const containerRef = useRef<HTMLDivElement>(null);
 
     const filteredOptions = options.filter(option =>
         option.toLowerCase().includes(searchTerm.toLowerCase())
     );
+    
+    // Sort so recommendedValue is always first if it exists in the filtered results
+    if (recommendedValue) {
+        filteredOptions.sort((a, b) => {
+            if (a === recommendedValue) return -1;
+            if (b === recommendedValue) return 1;
+            return 0;
+        });
+    }
 
     const handleSelect = (option: string) => {
         onChange(option);
@@ -25,8 +36,24 @@ export function SearchableSelect({ options, value, onChange, placeholder, label 
         setSearchTerm('');
     };
 
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+
+        if (isOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [isOpen]);
+
     return (
-        <div className="relative">
+        <div className="relative" ref={containerRef}>
             <label className="block text-sm font-medium text-theme-text-secondary mb-2">
                 {label}
             </label>
@@ -47,7 +74,7 @@ export function SearchableSelect({ options, value, onChange, placeholder, label 
 
             {/* Dropdown */}
             {isOpen && (
-                <div className="absolute z-[100] w-full mt-2 bg-theme-card border border-theme-subtle rounded-lg shadow-2xl max-h-80 shadow-black/50 overflow-hidden flex flex-col">
+                <div className="absolute z-[100] min-w-full w-max mt-2 bg-theme-card border border-theme-subtle rounded-lg shadow-2xl max-h-80 shadow-black/50 overflow-hidden flex flex-col">
                     {/* Search Input */}
                     <div className="p-3 border-b border-theme-border flex-shrink-0 bg-theme-card">
                         <div className="relative">
@@ -77,12 +104,17 @@ export function SearchableSelect({ options, value, onChange, placeholder, label 
                                     key={option}
                                     type="button"
                                     onClick={() => handleSelect(option)}
-                                    className={`w-full px-4 py-2.5 text-left hover:bg-[#D4AF37]/10 transition-colors ${value === option
+                                    className={`w-full px-4 py-2.5 text-left hover:bg-[#D4AF37]/10 transition-colors flex items-center justify-between ${value === option
                                         ? 'bg-[#D4AF37]/20 text-[#D4AF37]'
                                         : 'text-theme-text-secondary'
                                         }`}
                                 >
-                                    {option}
+                                    <span className="mr-4">{option}</span>
+                                    {option === recommendedValue && (
+                                        <span className="shrink-0 whitespace-nowrap text-xs font-semibold text-amber-500 bg-amber-500/10 px-2 flex items-center h-6 rounded-full ml-auto">
+                                            ✨ Recommended
+                                        </span>
+                                    )}
                                 </button>
                             ))
                         ) : (
@@ -91,11 +123,6 @@ export function SearchableSelect({ options, value, onChange, placeholder, label 
                             </div>
                         )}
                     </div>
-                    {/* Invisible Backdrop overlay solely for clicking outside */}
-                    <div
-                        className="fixed inset-0 z-[-1]"
-                        onClick={() => setIsOpen(false)}
-                    />
                 </div>
             )}
         </div>

@@ -16,6 +16,7 @@ import { LANGUAGES, TIMEZONES } from '../constants/languages-timezones';
 import { api } from '../lib/api';
 import { Modal } from '../components/ui/Modal';
 import { useAuth } from '../contexts/AuthContext';
+import { useLocationGuess } from '../hooks/useLocationGuess';
 
 export function FindPartnerPage() {
   const router = useRouter();
@@ -31,17 +32,33 @@ export function FindPartnerPage() {
   const [isIcebreakerModalOpen, setIsIcebreakerModalOpen] = useState(false);
   const [icebreakerText, setIcebreakerText] = useState('');
   const [isSendingRequest, setIsSendingRequest] = useState(false);
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
+
+  // Hook for guessing user's timezone based on Intl API
+  const { recommendedTimezone } = useLocationGuess();
+
+  // Try to pre-fill the timezone dropdown if the user has one saved
+  useEffect(() => {
+    if (user?.timezone && !selectedTimezone) {
+      setSelectedTimezone(user.timezone);
+    }
+  }, [user, selectedTimezone]);
 
   const handleMatchComplete = useCallback(async () => {
     setIsMatching(false);
 
     try {
-      const data = await api.match.find({
+      const payload = isAdvancedOpen ? {
+        is_advanced: true,
         level: selectedLevel,
         language: selectedLanguage,
         timezone: selectedTimezone,
         goals,
-      });
+      } : {
+        is_advanced: false
+      };
+
+      const data = await api.match.find(payload);
 
       if (data.match) {
         setMatchData(data.match);
@@ -138,7 +155,37 @@ export function FindPartnerPage() {
         {!matchFound ? (
           <Card className="p-8 md:p-10 overflow-visible relative z-10">
             <form className="space-y-8" onSubmit={handleMatch}>
-              <div className="grid md:grid-cols-2 gap-8">
+              {!isAdvancedOpen ? (
+                <div className="space-y-6 text-center py-8">
+                  <div className="w-20 h-20 bg-[#D4AF37]/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <BookOpen className="w-10 h-10 text-[#D4AF37]" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-theme-text font-serif">Default Search</h3>
+                  <p className="text-theme-text-secondary max-w-md mx-auto">
+                    We'll find the best memorization partner for you based on the preferences saved in your profile.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setIsAdvancedOpen(true)}
+                    className="text-[#D4AF37] hover:text-[#D4AF37]/80 text-sm font-medium transition-colors mt-4 block mx-auto underline"
+                  >
+                    Use Advanced Options Instead
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="flex justify-between items-center pb-2 border-b border-theme-border">
+                    <h3 className="text-lg font-bold text-theme-text font-serif">Advanced Options</h3>
+                    <button
+                      type="button"
+                      onClick={() => setIsAdvancedOpen(false)}
+                      className="text-theme-text-secondary hover:text-theme-text text-sm transition-colors underline"
+                    >
+                      Use Profile Defaults
+                    </button>
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-8">
                 <div className="space-y-6">
                   <h3 className="text-lg font-bold text-theme-text flex items-center">
                     <BookOpen className="w-5 h-5 text-[#D4AF37] mr-2" />
@@ -150,10 +197,10 @@ export function FindPartnerPage() {
                     value={selectedLevel}
                     onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedLevel(e.target.value)}
                     options={[
-                      { value: 'beginner', label: 'Beginner (Juz 30)' },
-                      { value: 'intermediate', label: 'Intermediate (5-10 Juz)' },
-                      { value: 'advanced', label: 'Advanced (15+ Juz)' },
-                      { value: 'hafiz', label: 'Hafiz (Revision)' },
+                      { value: 'beginner', label: 'Beginner (0-5 Parts)' },
+                      { value: 'intermediate', label: 'Intermediate (6-14 Parts)' },
+                      { value: 'advanced', label: 'Advanced (15-29 Parts)' },
+                      { value: 'hafiz', label: 'Hafiz (Completed All 30 Parts)' },
                     ]}
                   />
 
@@ -178,6 +225,7 @@ export function FindPartnerPage() {
                     options={TIMEZONES}
                     value={selectedTimezone}
                     onChange={setSelectedTimezone}
+                    recommendedValue={recommendedTimezone}
                   />
 
                   <div className="space-y-2">
@@ -204,8 +252,10 @@ export function FindPartnerPage() {
                   onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setGoals(e.target.value)}
                 />
               </div>
+              </>
+              )}
 
-              <div className="pt-4 flex justify-center">
+              <div className="pt-4 flex flex-col items-center justify-center gap-4">
                 <Button
                   type="submit"
                   size="lg"
@@ -214,6 +264,24 @@ export function FindPartnerPage() {
                 >
                   Start Matching
                 </Button>
+                
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const res = await api.match.clearDeclined();
+                      setError(`Successfully cleared ${res.cleared_count} skipped partner(s). They will now appear in your future matches.`);
+                      setMatchFound(false); 
+                      setMatchData(null);
+                    } catch (err: any) {
+                      setError(err.message || 'Failed to clear skipped partners.');
+                    }
+                  }}
+                  className="text-amber-500/80 hover:text-amber-500 text-xs transition-colors"
+                  title="If you skipped anyone by mistake, click this to reset your skipped history."
+                >
+                  Clear Skipped Partners
+                </button>
               </div>
             </form>
           </Card>
@@ -234,14 +302,14 @@ export function FindPartnerPage() {
               onDecline={handleDecline}
               onProfile={() => router.push(`/u/${matchData.id}`)}
             />
-            <div className="text-center">
-              <button
-                onClick={() => { setMatchFound(false); setMatchData(null); }}
-                className="text-theme-text-secondary hover:text-theme-text text-sm underline"
-              >
-                Change Preferences
-              </button>
-            </div>
+              <div className="text-center flex flex-col items-center gap-4">
+                <button
+                  onClick={() => { setMatchFound(false); setMatchData(null); }}
+                  className="text-theme-text-secondary hover:text-theme-text text-sm underline"
+                >
+                  Change Preferences
+                </button>
+              </div>
           </div>
         )}
       </div>

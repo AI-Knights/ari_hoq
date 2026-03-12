@@ -49,73 +49,75 @@ export function Navigation() {
   };
 
   return (
-    <motion.nav
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 border-b ${isScrolled ? 'border-theme-border py-2 sm:py-3 md:py-4' : 'border-transparent py-3 sm:py-4 md:py-6'
-        }`}
-      style={{
-        backgroundColor: isScrolled ? 'var(--nav-bg)' : 'transparent',
-        backdropFilter: isScrolled ? 'blur(10px)' : 'none',
-      }}
-    >
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
+    <>
+      <motion.nav
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 border-b ${isScrolled ? 'border-theme-border py-2 sm:py-3 md:py-4' : 'border-transparent py-3 sm:py-4 md:py-6'
+          }`}
+        style={{
+          backgroundColor: isScrolled ? 'var(--nav-bg)' : 'transparent',
+          backdropFilter: isScrolled ? 'blur(10px)' : 'none',
+        }}
+      >
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
 
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-          <div className="relative h-10 w-28 xs:h-12 xs:w-32 sm:h-14 sm:w-36 md:h-16 md:w-44">
-            <Image
-              src={theme === 'light' ? '/logo-dark.png' : '/logo.png'}
-              alt="QuranPartners Logo"
-              fill
-              className="object-contain"
-              priority
-              sizes="(max-width: 375px) 112px, (max-width: 640px) 128px, (max-width: 768px) 144px, 176px"
-            />
-          </div>
-        </Link>
-
-        {/* Desktop Nav */}
-        <div className="hidden md:flex items-center space-x-4 lg:space-x-8">
-          <button
-            onClick={() => scrollToSection('how-it-works')}
-            className={`transition-colors text-sm font-medium whitespace-nowrap text-theme-text-secondary hover:text-[#D4AF37]`}
-          >
-            How it Works
-          </button>
-          <Link href="/about" className={getLinkClass('/about')}>
-            About
+          {/* Logo */}
+          <Link href="/" className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+            <div className="relative h-10 w-28 xs:h-12 xs:w-32 sm:h-14 sm:w-36 md:h-16 md:w-44">
+              <Image
+                src={theme === 'light' ? '/logo-dark.png' : '/logo.png'}
+                alt="QuranPartners Logo"
+                fill
+                className="object-contain"
+                priority
+                sizes="(max-width: 375px) 112px, (max-width: 640px) 128px, (max-width: 768px) 144px, 176px"
+              />
+            </div>
           </Link>
 
-          {/* Login link — only when NOT signed in */}
-          {!user && (
-            <Link href="/auth" className={getLinkClass('/auth')}>
-              Login
+          {/* Desktop Nav */}
+          <div className="hidden md:flex items-center space-x-4 lg:space-x-8">
+            <button
+              onClick={() => scrollToSection('how-it-works')}
+              className={`transition-colors text-sm font-medium whitespace-nowrap text-theme-text-secondary hover:text-[#D4AF37]`}
+            >
+              How it Works
+            </button>
+            <Link href="/about" className={getLinkClass('/about')}>
+              About
             </Link>
-          )}
 
-          <ThemeToggle />
+            {/* Login link — only when NOT signed in */}
+            {!user && (
+              <Link href="/auth" className={getLinkClass('/auth')}>
+                Login
+              </Link>
+            )}
 
-          <button
-            onClick={() => router.push(user ? '/dashboard' : '/auth?tab=signup')}
-            className="bg-[#D4AF37] hover:bg-[#b5952f] text-[#0A1A3A] px-4 lg:px-6 py-2 rounded-full font-semibold transition-all transform hover:scale-105 shadow-[0_0_15px_rgba(212,175,55,0.3)] text-sm whitespace-nowrap"
-          >
-            {user ? 'Dashboard' : 'Get Started'}
-          </button>
+            <ThemeToggle />
+
+            <button
+              onClick={() => router.push(user ? '/dashboard' : '/auth?tab=signup')}
+              className="bg-[#D4AF37] hover:bg-[#b5952f] text-[#0A1A3A] px-4 lg:px-6 py-2 rounded-full font-semibold transition-all transform hover:scale-105 shadow-[0_0_15px_rgba(212,175,55,0.3)] text-sm whitespace-nowrap"
+            >
+              {user ? 'Dashboard' : 'Get Started'}
+            </button>
+          </div>
+
+          {/* Mobile Menu Button */}
+          <div className="md:hidden flex items-center gap-2">
+            <ThemeToggle />
+            <button
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="text-theme-text p-2 hover:bg-theme-hover rounded-lg transition-colors"
+              aria-label="Open mobile menu"
+            >
+              <Menu size={24} />
+            </button>
+          </div>
         </div>
+      </motion.nav>
 
-        {/* Mobile Menu Button */}
-        <div className="md:hidden flex items-center gap-2">
-          <ThemeToggle />
-          <button
-            onClick={() => setIsMobileMenuOpen(true)}
-            className="text-theme-text p-2 hover:bg-theme-hover rounded-lg transition-colors"
-            aria-label="Open mobile menu"
-          >
-            <Menu size={24} />
-          </button>
-        </div>
-      </div>
-
-      {/* Mobile Drawer */}
+      {/* Extracted Mobile Drawer */}
       <AnimatePresence>
         {isMobileMenuOpen && (
           <>
@@ -123,12 +125,14 @@ export function Navigation() {
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
               onClick={() => setIsMobileMenuOpen(false)}
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 md:hidden"
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] md:hidden"
+              style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
             />
             <motion.div
               initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed top-0 right-0 bottom-0 w-64 bg-theme-card border-l border-theme-border shadow-2xl z-50 md:hidden overflow-y-auto flex flex-col"
+              className="fixed top-0 right-0 bottom-0 w-64 bg-theme-card border-l border-theme-border shadow-2xl z-[101] md:hidden overflow-y-auto flex flex-col"
+              style={{ position: 'fixed' }}
             >
               <div className="flex items-center justify-between p-4 border-b border-theme-border">
                 <span className="font-semibold text-lg text-theme-text">Menu</span>
@@ -165,6 +169,6 @@ export function Navigation() {
           </>
         )}
       </AnimatePresence>
-    </motion.nav>
+    </>
   );
 }

@@ -12,7 +12,7 @@ export function HeroSection() {
   const { user } = useAuth();
   const router = useRouter();
   return (
-    <section className="relative min-h-screen flex flex-col justify-center items-center pt-20 overflow-hidden">
+    <section className="relative min-h-screen flex flex-col justify-center items-center pt-32 md:pt-40 lg:pt-48 overflow-hidden">
       <div className="container mx-auto px-4 z-10 grid md:grid-cols-2 gap-12 items-center">
         {/* Text Content */}
         <motion.div
