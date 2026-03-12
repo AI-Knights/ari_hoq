@@ -302,7 +302,7 @@ export function FriendsPage({
                 <h2 className="text-lg font-bold text-theme-text">All Friends ({friends.length})</h2>
                 <div className="w-64">
                   <Input
-                    placeholder="Search friends..."
+                    placeholder="Search my friends list..."
                     leftIcon={<Search className="w-4 h-4" />}
                     className="bg-theme-input"
                     value={localSearchQuery}
@@ -332,9 +332,22 @@ export function FriendsPage({
                     />
                   ))}
                   {friends.filter(f => f.name.toLowerCase().includes(localSearchQuery.toLowerCase())).length === 0 && (
-                      <p className="col-span-full text-center py-12 text-theme-text-secondary">
-                        No friends found matching "{localSearchQuery}".
-                      </p>
+                      <div className="col-span-full text-center py-12">
+                        <p className="text-theme-text-secondary mb-4">
+                          No friends found matching "{localSearchQuery}" in your current list.
+                        </p>
+                        <button 
+                          onClick={() => {
+                            setIsAddModalOpen(true);
+                            setSearchQuery(localSearchQuery);
+                            handleSearch(localSearchQuery);
+                          }}
+                          className="text-[#D4AF37] hover:underline font-medium flex items-center gap-2 mx-auto"
+                        >
+                          <Search className="w-4 h-4" />
+                          Search global community for "{localSearchQuery}"
+                        </button>
+                      </div>
                   )}
                 </div>
               )}

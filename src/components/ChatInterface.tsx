@@ -109,7 +109,6 @@ export function ChatInterface({
     }
   }, [existingMessages, partner.id]);
   const [newMessage, setNewMessage] = useState('');
-  const [showZoomTimer, setShowZoomTimer] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
@@ -218,23 +217,16 @@ export function ChatInterface({
           </div>
         </div>
         <div className="flex items-center gap-2 relative">
-          {showZoomTimer ?
-            <div className="flex items-center gap-2 bg-[#D4AF37]/10 px-3 py-1.5 rounded-full border border-[#D4AF37]/30">
-              <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-              <span className="text-[#D4AF37] font-mono text-sm">38:42</span>
-            </div> :
-
-            isFriend && !isBlocked && (
-              <Button
-                variant="secondary"
-                size="sm"
-                className="px-2 lg:px-3"
-                leftIcon={<Video className="w-4 h-4" />}
-                onClick={onCallInitiate || (() => setShowZoomTimer(true))}>
-                <span className="hidden lg:inline">Start Session</span>
-              </Button>
-            )
-          }
+          {isFriend && !isBlocked && (
+            <Button
+              variant="secondary"
+              size="sm"
+              className="px-2 lg:px-3"
+              leftIcon={<Video className="w-4 h-4" />}
+              onClick={onCallInitiate}>
+              <span className="hidden lg:inline">Video Call</span>
+            </Button>
+          )}
           <div className="relative" ref={menuRef}>
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -338,13 +330,64 @@ export function ChatInterface({
               className={`flex mb-4 ${isMe ? 'justify-end' : 'justify-start'}`}>
 
               <div
-                className={`max-w-[70%] px-4 py-3 rounded-2xl ${isMe ? 'bg-[#D4AF37] text-[#0A1A3A] rounded-tr-none' : 'bg-theme-bg-elevated text-theme-text rounded-tl-none'}`}>
+                className={`max-w-[85%] sm:max-w-[70%] px-4 py-3 rounded-2xl shadow-sm relative ${
+                  isMe 
+                    ? 'bg-[#D4AF37] text-[#0A1A3A] rounded-tr-none gold-glow' 
+                    : 'bg-[#1a1a4a]/60 backdrop-blur-md border border-white/10 text-theme-text rounded-tl-none'
+                }`}>
 
-                <p className="text-sm leading-relaxed">{msg.text}</p>
+                <div className="text-sm leading-relaxed whitespace-pre-wrap">
+                  {msg.text.split(/(https?:\/\/[^\s]+)/g).map((part, i) => {
+                    if (part.startsWith('http')) {
+                      const isJitsi = part.includes('meet.jit.si') || part.includes('ffmuc.net');
+                      if (isJitsi) {
+                        return (
+                          <div key={i} className="mt-3 mb-1 p-4 bg-[#0A1A3A]/80 border border-white/10 rounded-xl flex flex-col items-center gap-3 backdrop-blur-sm shadow-lg border-l-4 border-l-[#D4AF37]">
+                            <div className="w-10 h-10 bg-[#D4AF37]/10 rounded-full flex items-center justify-center">
+                              <Video className="w-5 h-5 text-[#D4AF37]" />
+                            </div>
+                            <div className="text-center">
+                              <p className="font-bold text-white text-xs mb-1 uppercase tracking-wider">Video Meeting Invitation</p>
+                              <p className="text-white/60 text-[10px]">Click the button below to join the secure session</p>
+                            </div>
+                            <a
+                              href={part}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="w-full text-center bg-[#D4AF37] text-[#0A1A3A] py-2.5 px-6 rounded-lg font-bold text-xs hover:bg-[#fce588] transition-all gold-glow shadow-md transform hover:scale-[1.02] active:scale-[0.98]"
+                            >
+                              Join Now
+                            </a>
+                          </div>
+                        );
+                      }
+                      return (
+                        <a
+                          key={i}
+                          href={part}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[#D4AF37] font-medium hover:underline break-all"
+                        >
+                          {part}
+                        </a>
+                      );
+                    }
+                    
+                    // Personalize invitation text for recipients
+                    let displayPart = part;
+                    const isJitsiMessage = msg.text.includes('meet.jit.si') || msg.text.includes('ffmuc.net');
+                    if (!isMe && isJitsiMessage) {
+                        displayPart = displayPart.replace("I've invited you", "You've been invited");
+                    }
+                    
+                    return <span key={i}>{displayPart}</span>;
+                  })}
+                </div>
                 <div
-                  className={`mt-1 flex items-center gap-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                  className={`mt-2 flex items-center gap-1.5 ${isMe ? 'justify-end' : 'justify-start'}`}>
                   <p
-                    className={`text-[10px] ${isMe ? 'text-[#0A1A3A]/60' : 'text-theme-text-muted'}`}>
+                    className={`text-[10px] font-medium ${isMe ? 'text-[#0A1A3A]/60' : 'text-theme-text-muted'}`}>
                     {msg.timestamp.toLocaleTimeString([], {
                       hour: '2-digit',
                       minute: '2-digit'
