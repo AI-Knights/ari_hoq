@@ -451,12 +451,22 @@ class MatchView(APIView):
         # Exclude self, existing friends, pending requests, declined matches, and blocks
         existing = Friendship.objects.filter(
             Q(user1=request.user) | Q(user2=request.user),
-            status__in=['accepted', 'pending', 'declined']   # now also excluding declined
+            status__in=['accepted', 'pending', 'declined']
         ).values_list('user1_id', 'user2_id')
         excluded = {request.user.id}
         for u1, u2 in existing:
             excluded.add(u1)
             excluded.add(u2)
+
+        # Also exclude people with active PartnerRequests (redundant matching)
+        from .models import PartnerRequest
+        requests = PartnerRequest.objects.filter(
+            Q(requester=request.user) | Q(recipient=request.user),
+            status='pending'
+        ).values_list('requester_id', 'recipient_id')
+        for r1, r2 in requests:
+            excluded.add(r1)
+            excluded.add(r2)
 
         from .models import Block
         blocks = Block.objects.filter(Q(blocker=request.user) | Q(blocked=request.user))
@@ -464,8 +474,9 @@ class MatchView(APIView):
             excluded.add(b.blocker_id)
             excluded.add(b.blocked_id)
 
+        # Strict same-gender matching as promised by UI
         candidates = User.objects.exclude(id__in=excluded).filter(
-            is_active=True, is_suspended=False
+            is_active=True, is_suspended=False, gender=request.user.gender
         )
 
         best, best_score = None, -1
@@ -695,27 +706,39 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [filters.SearchFilter]
-    search_fields = ['username', 'email', 'full_name', 'level', 'location']
+    search_fields = ['email']
 
     def get_queryset(self):
         """
-        For listing/searching: exclude blocked users
-        For individual retrieval: allow viewing (needed for reporting, verification)
+        Exclude blocked users, current user, existing friends, and pending requests.
         """
         u = self.request.user
         
-        # If this is a detail view (retrieve), don't filter blocks
         if self.action == 'retrieve':
             return User.objects.filter(is_active=True)
         
-        # For list/search: exclude blocks
-        excluded = set()
-        from .models import Block
+        excluded = {u.id}
+        from .models import Block, Friendship, PartnerRequest
         from django.db.models import Q
+
+        # Blocks
         blocks = Block.objects.filter(Q(blocker=u) | Q(blocked=u))
         for b in blocks:
             excluded.add(b.blocker_id)
             excluded.add(b.blocked_id)
+
+        # Friends/Connection history (Accepted, Pending, Declined)
+        friendships = Friendship.objects.filter(Q(user1=u) | Q(user2=u))
+        for f in friendships:
+            excluded.add(f.user1_id)
+            excluded.add(f.user2_id)
+
+        # Partner Requests
+        requests = PartnerRequest.objects.filter(Q(requester=u) | Q(recipient=u))
+        for r in requests:
+            excluded.add(r.requester_id)
+            excluded.add(r.recipient_id)
+
         return User.objects.filter(is_active=True).exclude(id__in=excluded)
 
     def retrieve(self, request, *args, **kwargs):
@@ -884,13 +907,12 @@ class FriendshipViewSet(viewsets.ModelViewSet):
 
         from django.db.models import Q
         deleted, _ = Friendship.objects.filter(
-            Q(user1=request.user, user2=target) | Q(user1=target, user2=request.user),
-            status='accepted'
+            Q(user1=request.user, user2=target) | Q(user1=target, user2=request.user)
         ).delete()
 
         if deleted:
-            return Response({'status': 'unfriended'})
-        return Response({'error': 'Not friends'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'status': 'unfriended/connection cleared'})
+        return Response({'error': 'No connection found to clear'}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=['post'])
     def block(self, request):
@@ -1239,163 +1261,74 @@ class ReportViewSet(viewsets.ModelViewSet):
         return Response({'status': 'User warned', 'warnings_count': target.warnings_count})
 
 # ---------------------------------------------------------------------------
-# WebRTC / Agora Token
+# Jitsi Meet
 # ---------------------------------------------------------------------------
 
-import time
 import uuid
-from django.conf import settings
-from agora_token_builder import RtcTokenBuilder
-from .models import VideoCall
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
+from .models import Message, Friendship, UserAccount as User
 
-class AgoraTokenView(APIView):
+class StartMeetingView(APIView):
     """
-    POST /api/video/token/
-    Accepts channel_name and returns an Agora RTC token if the user is a participant.
-    """
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request):
-        channel_name = request.data.get('channel_name')
-        if not channel_name:
-            return Response({'error': 'channel_name is required'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Validate that the user is a participant in the call
-        call = VideoCall.objects.filter(
-            Q(channel_name=channel_name) & 
-            (Q(initiator=request.user) | Q(receiver=request.user))
-        ).first()
-
-        if not call:
-            return Response({'error': 'Unauthorized or invalid channel'}, status=status.HTTP_403_FORBIDDEN)
-
-        app_id = getattr(settings, 'AGORA_APP_ID', None)
-        app_certificate = getattr(settings, 'AGORA_APP_CERTIFICATE', None)
-        
-        if not app_id or not app_certificate:
-            return Response({'error': 'Agora credentials are not configured'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-        # Build token with uid 0 (allows Agora to assign or just connects)
-        expiration_time_in_seconds = 3600
-        current_time_stamp = int(time.time())
-        privilege_expired_ts = current_time_stamp + expiration_time_in_seconds
-        role = 1 # Role_Publisher
-
-        token = RtcTokenBuilder.buildTokenWithUid(
-            app_id, 
-            app_certificate, 
-            channel_name, 
-            0,         # uid=0 → Agora grants access to any UID
-            role, 
-            privilege_expired_ts
-        )
-        
-        return Response({
-            'token': token, 
-            'uid': 0, 
-            'channel_name': channel_name,
-            'app_id': app_id
-        })
-
-
-class CallInitiateView(APIView):
-    """
-    POST /api/video/call/initiate/
-    Accepts receiver_id, creates a VideoCall record, and optionally signals via WS.
+    POST /api/chat/meeting/
+    Generates a Jitsi Meet link and injects it as a message from the initiator.
     """
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
-        receiver_id = request.data.get('receiver_id')
-        channel_name = request.data.get('channel_name')
-        
-        if not receiver_id:
-            return Response({'error': 'receiver_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+        partner_id = request.data.get('thread_id') # Treat the passed 'thread_id' as partner_id
+        if not partner_id:
+            return Response({'error': 'partner_id (thread_id) is required'}, status=status.HTTP_400_BAD_REQUEST)
         
         try:
-            receiver = User.objects.get(id=receiver_id)
-        except User.DoesNotExist:
-            return Response({'error': 'Receiver not found'}, status=status.HTTP_404_NOT_FOUND)
+            partner = User.objects.get(id=partner_id)
+        except (User.DoesNotExist, ValueError):
+            return Response({'error': 'Partner not found'}, status=status.HTTP_404_NOT_FOUND)
 
-        # Use provided deterministic channel name, otherwise fallback to UUID
-        call_channel = channel_name if channel_name else str(uuid.uuid4())
+        # Verify friendship
+        if not Friendship.objects.filter(
+            Q(user1=request.user, user2=partner) | Q(user1=partner, user2=request.user),
+            status='accepted'
+        ).exists():
+            return Response({'error': 'You can only start meetings with friends'}, status=status.HTTP_403_FORBIDDEN)
 
-        # If call exists and is pending/active, reuse it
-        call = VideoCall.objects.filter(channel_name=call_channel).first()
-        if not call:
-            call = VideoCall.objects.create(
-                initiator=request.user,
-                receiver=receiver,
-                channel_name=call_channel,
-                status='pending'
-            )
-        else:
-            # Re-activating a dropped/retry call
-            call.status = 'pending'
-            call.save()
+        # Generate a unique Jitsi room name
+        room_name = f"QuranPartner_{uuid.uuid4().hex[:12]}"
+        meeting_link = f"https://meet.ffmuc.net/{room_name}"
 
-        # Send WebSocket notification to the receiver
-        from channels.layers import get_channel_layer
-        from asgiref.sync import async_to_sync
-        channel_layer = get_channel_layer()
+        # Create a message containing the link
+        message_content = f"I've invited you to a video meeting! Click here to join: {meeting_link}"
+        msg = Message.objects.create(
+            sender=request.user,
+            recipient=partner,
+            content=message_content,
+        )
         
+        # Broadcast the message via WebSockets
+        from .serializers import MessageSerializer
+        message_data = MessageSerializer(msg).data
+        
+        channel_layer = get_channel_layer()
+        # Broadcast to initiator
         async_to_sync(channel_layer.group_send)(
-            f"inbox_{receiver.id}",
+            f"inbox_{request.user.id}",
             {
-                'type': 'call_signal',
-                'signal_type': 'incoming_call',
-                'sender_id': str(request.user.id),
-                'channel_name': call.channel_name,
-                'caller_info': MinimalUserSerializer(request.user).data
+                'type': 'chat_message',
+                'message': message_data
             }
         )
-
+        # Broadcast to partner
+        async_to_sync(channel_layer.group_send)(
+            f"inbox_{partner.id}",
+            {
+                'type': 'chat_message',
+                'message': message_data
+            }
+        )
+        
         return Response({
-            'channel_name': call.channel_name,
-            'call_id': call.id
+            'status': 'success',
+            'meeting_link': meeting_link,
+            'message_id': msg.id
         }, status=status.HTTP_201_CREATED)
-
-
-class CallAcceptView(APIView):
-    """
-    POST /api/video/call/accept/
-    Accepts channel_name and updates status to active.
-    """
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request):
-        channel_name = request.data.get('channel_name')
-        call = VideoCall.objects.filter(channel_name=channel_name, receiver=request.user).first()
-        
-        if not call:
-            return Response({'error': 'Call not found'}, status=status.HTTP_404_NOT_FOUND)
-            
-        call.status = 'active'
-        call.save()
-        
-        return Response({'status': 'active'})
-
-
-class CallEndView(APIView):
-    """
-    POST /api/video/call/end/
-    Accepts channel_name and optional status. Updates call status.
-    """
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request):
-        channel_name = request.data.get('channel_name')
-        new_status = request.data.get('status', 'ended') # can be missed, rejected, etc.
-        
-        call = VideoCall.objects.filter(
-            Q(channel_name=channel_name) & 
-            (Q(initiator=request.user) | Q(receiver=request.user))
-        ).first()
-        
-        if not call:
-            return Response({'error': 'Call not found'}, status=status.HTTP_404_NOT_FOUND)
-            
-        call.status = new_status
-        call.save()
-        
-        return Response({'status': new_status})

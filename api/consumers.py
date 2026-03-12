@@ -69,26 +69,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
             # Respond to heartbeat
             await self.send(text_data=json.dumps({'type': 'pong'}))
 
-        elif msg_type in [
-            'call_initiate', 'call_accept', 'call_reject', 'call_end', 
-            'call_ringing', 'call_cancelled', 'call_busy', 'call_missed',
-            'user_muted', 'user_unmuted', 'camera_on', 'camera_off'
-        ] and recipient_id:
-            # Route video call signaling (including mute/camera state) to recipient
-            is_friend = await self.verify_friendship(self.user.id, recipient_id)
-            if not is_friend:
-                return
-
-            await self.channel_layer.group_send(
-                f"inbox_{recipient_id}",
-                {
-                    'type': 'call_signal',
-                    'signal_type': msg_type,
-                    'sender_id': str(self.user.id),
-                    'channel_name': text_data_json.get('channel_name'),
-                    'caller_info': text_data_json.get('caller_info'),  # forwarded from caller
-                }
-            )
         elif content and recipient_id:
             # Verify friendship exists before allowing message send
             is_friend = await self.verify_friendship(self.user.id, recipient_id)
@@ -134,19 +114,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             
         await self.send(text_data=json.dumps(payload))
 
-    # Handle video call signals
-    async def call_signal(self, event):
-        payload = {
-            'type': event['signal_type'],
-            'sender_id': event['sender_id']
-        }
-        if 'channel_name' in event and event['channel_name']:
-            payload['channel_name'] = event['channel_name']
-        
-        if 'caller_info' in event:
-            payload['caller_info'] = event['caller_info']
-            
-        await self.send(text_data=json.dumps(payload))
+
 
     @database_sync_to_async
     def verify_friendship(self, user_id, partner_id):

@@ -173,7 +173,7 @@ class PasswordResetRequestSerializer(serializers.Serializer):
 # Feature Serializers
 # ---------------------------------------------------------------------------
 
-from .models import HifzProgress, PartnerPreference, Availability, Friendship, PartnerRequest, Message, Report, VideoCall
+from .models import HifzProgress, PartnerPreference, Availability, Friendship, PartnerRequest, Message, Report
 
 
 class HifzProgressSerializer(serializers.ModelSerializer):
@@ -244,11 +244,4 @@ class ReportSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'resolved_at', 'resolved_by']
 
 
-class VideoCallSerializer(serializers.ModelSerializer):
-    initiator = MinimalUserSerializer(read_only=True)
-    receiver = MinimalUserSerializer(read_only=True)
 
-    class Meta:
-        model = VideoCall
-        fields = ['id', 'channel_name', 'initiator', 'receiver', 'status', 'created_at', 'ended_at']
-        read_only_fields = ['id', 'channel_name', 'created_at']
