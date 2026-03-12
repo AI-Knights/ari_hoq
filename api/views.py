@@ -432,17 +432,21 @@ class MatchView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
-        level = request.data.get('level', '')
-        language = request.data.get('language', '')
-        timezone_pref = request.data.get('timezone', '')
-        goals = request.data.get('goals', '')
-
+        is_advanced = request.data.get('is_advanced', False)
+        
         pref, _ = PartnerPreference.objects.get_or_create(user=request.user)
-        pref.level = level
-        pref.preferred_language = language
-        pref.timezone = timezone_pref
-        pref.goals = goals
-        pref.save()
+        
+        if is_advanced:
+            # Advanced Search: Use temporary passed criteria, don't overwrite saved profile
+            level = request.data.get('level', '')
+            language = request.data.get('language', '')
+            timezone_pref = request.data.get('timezone', '')
+        else:
+            # Default Search: Pre-fill from saved PartnerPreference or UserAccount
+            level = getattr(pref, 'level', '') or getattr(request.user, 'level', '') or ''
+            language = getattr(pref, 'preferred_language', '') or getattr(request.user, 'primary_language', '') or ''
+            timezone_pref = getattr(pref, 'timezone', '') or getattr(request.user, 'timezone', '') or ''
+
 
         # Exclude self, existing friends, pending requests, declined matches, and blocks
         existing = Friendship.objects.filter(
@@ -517,6 +521,27 @@ class SkipMatchView(APIView):
             )
         
         return Response({'status': 'skipped'})
+
+
+class MatchClearDeclinedView(APIView):
+    """Clear all declined matches for the current user so they can appear in matching again"""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        # Find all Friendship records where user is involved and status is 'declined'
+        declined_matches = Friendship.objects.filter(
+            Q(user1=request.user) | Q(user2=request.user),
+            status='declined'
+        )
+        
+        count = declined_matches.count()
+        declined_matches.delete()
+        
+        return Response({
+            'status': 'success',
+            'message': f'Cleared {count} skipped partner(s)',
+            'cleared_count': count
+        })
 
 
 # ---------------------------------------------------------------------------

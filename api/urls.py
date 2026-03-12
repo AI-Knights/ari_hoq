@@ -31,6 +31,7 @@ urlpatterns = [
     path('dashboard/stats/', views.DashboardStatsView.as_view(), name='dashboard-stats'),
     path('match/', views.MatchView.as_view(), name='match'),
     path('match/skip/', views.SkipMatchView.as_view(), name='match-skip'),
+    path('match/clear-declined/', views.MatchClearDeclinedView.as_view(), name='match-clear-declined'),
 
     # Admin endpoints
     path('admin/stats/', views.AdminStatsView.as_view(), name='admin-stats'),
