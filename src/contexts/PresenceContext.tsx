@@ -30,10 +30,11 @@ export function PresenceProvider({ children }: { children: React.ReactNode }) {
                 return;
             }
 
-            const protocol = typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             let apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
-            apiUrl = apiUrl.replace(/\/+$/, '').replace('http://', '').replace('https://', '');
-            setWsUrl(`${protocol}//${apiUrl}/ws/status/?token=${token}`);
+            apiUrl = apiUrl.replace(/\/+$/, '');
+            if (apiUrl.endsWith('/api')) apiUrl = apiUrl.slice(0, -4);
+            const wsBase = apiUrl.replace(/^http/, 'ws');
+            setWsUrl(`${wsBase}/ws/status/?token=${token}`);
         };
 
         buildWsUrl();

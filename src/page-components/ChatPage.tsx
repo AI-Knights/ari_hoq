@@ -162,7 +162,7 @@ export function ChatPage({
       let apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
       apiUrl = apiUrl.replace(/\/+$/, '');
       if (apiUrl.endsWith('/api')) apiUrl = apiUrl.slice(0, -4);
-      const wsBase = apiUrl.replace('http://', 'ws://').replace('https://', 'wss://');
+      const wsBase = apiUrl.replace(/^http/, 'ws');
       setWsUrl(`${wsBase}/ws/chat/?token=${token}`);
     };
 

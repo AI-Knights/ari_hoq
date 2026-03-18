@@ -25,14 +25,10 @@ export function useUnreadMessages() {
         return;
       }
 
-      const baseUrl = process.env.NEXT_PUBLIC_WS_URL || 
-        (typeof window !== 'undefined' && 
-         window.location.hostname !== 'localhost' && 
-         window.location.hostname !== '127.0.0.1' 
-          ? 'wss://dev.projectyard.top' 
-          : 'ws://127.0.0.1:8000');
-      
-      setWsUrl(`${baseUrl}/ws/chat/?token=${token}`);
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+      const cleanApiUrl = apiUrl.replace(/\/+$/, '').replace(/\/api$/, '');
+      const wsBase = cleanApiUrl.replace(/^http/, 'ws');
+      setWsUrl(`${wsBase}/ws/chat/?token=${token}`);
     };
 
     buildWsUrl();
