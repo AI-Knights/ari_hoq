@@ -23,8 +23,8 @@ def _send_in_thread(subject, plain_message, recipient_list, html_message=None):
                 html_message=html_message,
                 fail_silently=False,
             )
-        except Exception as e:
-            print(f"[EmailService] Failed to send email to {recipient_list}: {e}")
+        except Exception:
+            pass
 
     threading.Thread(target=_task, daemon=True).start()
 

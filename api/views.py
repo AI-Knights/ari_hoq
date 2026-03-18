@@ -267,11 +267,6 @@ class ProfileView(generics.RetrieveUpdateAPIView):
             except Exception:
                 pass # Fail silently if the image was already deleted or doesn't exist
 
-        print("--- UPDATE RECEIVED ---")
-        print("Keys present in request:", request.data.keys())
-        if 'avatar' in request.data:
-            print("Avatar value type:", type(request.data['avatar']))
-            
         for field in ['full_name', 'username', 'avatar', 'level', 'bio', 'location', 'timezone', 'primary_language', 'gender']:
             if field in request.data:
                 val = request.data[field]
