@@ -15,14 +15,17 @@ from .models import (
 @admin.register(UserAccount)
 class UserAccountAdmin(BaseUserAdmin):
     """Custom admin for UserAccount with grouped fieldsets."""
-    list_display = ('email', 'full_name', 'username', 'role', 'is_active', 'is_staff', 'is_suspended', 'date_joined')
-    list_filter = ('role', 'is_active', 'is_staff', 'is_superuser', 'is_suspended', 'date_joined')
+    list_display = ('email', 'full_name', 'username', 'role', 'is_active', 'is_2fa_enabled', 'is_staff', 'is_suspended', 'date_joined')
+    list_filter = ('role', 'is_active', 'is_2fa_enabled', 'is_staff', 'is_superuser', 'is_suspended', 'date_joined')
     search_fields = ('email', 'full_name', 'username')
     ordering = ('-date_joined',)
 
     fieldsets = (
         ('Account', {
             'fields': ('email', 'password', 'username', 'full_name', 'avatar')
+        }),
+        ('Two-Factor Auth', {
+            'fields': ('is_2fa_enabled', 'totp_secret', 'manage_2fa_link'),
         }),
         ('Role & Status', {
             'fields': ('role', 'is_active', 'is_staff', 'is_superuser', 'is_suspended', 'warnings_count')
@@ -51,7 +54,12 @@ class UserAccountAdmin(BaseUserAdmin):
         }),
     )
 
-    readonly_fields = ('date_joined', 'last_login', 'last_active')
+    readonly_fields = ('date_joined', 'last_login', 'last_active', 'totp_secret', 'manage_2fa_link')
+
+    def manage_2fa_link(self, obj):
+        from django.utils.html import format_html
+        return format_html('<a href="/admin-settings/" target="_blank">Manage My 2FA Settings</a>')
+    manage_2fa_link.short_description = 'Actions'
 
 
 # ---------------------------------------------------------------------------

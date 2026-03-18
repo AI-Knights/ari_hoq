@@ -1,6 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
+from . import views_2fa
 
 router = DefaultRouter()
 router.register(r'users', views.UserViewSet, basename='user')
@@ -26,6 +27,12 @@ urlpatterns = [
     path('auth/password-reset/', views.PasswordResetRequestView.as_view(), name='password-reset-request'),
     path('auth/password-reset/confirm/', views.SetNewPasswordView.as_view(), name='password-reset-confirm'),
     path('auth/token/refresh/', views.CookieTokenRefreshView.as_view(), name='token-refresh'),
+
+    # 2FA
+    path('auth/2fa/login/verify/', views_2fa.Verify2FALoginAPIView.as_view(), name='api-2fa-login-verify'),
+    path('auth/2fa/enable/init/', views_2fa.Enable2FAAPIView.as_view(), name='api-2fa-enable-init'),
+    path('auth/2fa/setup/', views_2fa.Setup2FAAPIView.as_view(), name='api-2fa-setup'),
+    path('auth/2fa/disable/', views_2fa.Disable2FAAPIView.as_view(), name='api-2fa-disable'),
 
     # Dashboard & Matching
     path('dashboard/stats/', views.DashboardStatsView.as_view(), name='dashboard-stats'),

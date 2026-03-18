@@ -168,13 +168,36 @@ class SendOTPView(APIView):
 
 
 class LoginView(APIView):
-    """Authenticate user and set httpOnly JWT cookies. Tokens are NOT in the response body."""
+    """Authenticate user and set httpOnly JWT cookies. Tokens are NOT in the response body.
+    If 2FA is enabled and user is admin/staff, returns a 2FA token instead.
+    """
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data['user']
+        
+        # Check for 2FA requirement (Admins only for now)
+        if user.is_2fa_enabled and user.role in ['admin', 'moderator']:
+            import jwt
+            from datetime import timedelta
+            from django.conf import settings as djsettings
+            
+            payload = {
+                'user_id': str(user.id),
+                'purpose': '2fa_login',
+                'exp': timezone.now() + timedelta(minutes=5),
+                'iat': timezone.now(),
+            }
+            two_fa_token = jwt.encode(payload, djsettings.SECRET_KEY, algorithm='HS256')
+            
+            return Response({
+                'requires_2fa': True,
+                'two_fa_token': two_fa_token,
+                'message': 'Two-factor authentication required.'
+            })
+
         refresh = CustomRefreshToken.for_user(user)
         response = Response({'user': UserSerializer(user).data})
         _set_auth_cookies(response, str(refresh.access_token), str(refresh))
@@ -685,7 +708,7 @@ class AdminUsersListView(APIView):
     def get(self, request):
         if not is_admin_or_mod(request.user):
             return Response({'error': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
-        qs = User.objects.filter(is_active=True)
+        qs = User.objects.filter(is_active=True).prefetch_related('hifz_progress')
         search = request.query_params.get('search', '').strip()
         if search:
             from django.db.models import Q
@@ -992,7 +1015,7 @@ class FriendshipViewSet(viewsets.ModelViewSet):
             'report_id': report.id
         }, status=status.HTTP_201_CREATED)
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], url_path='blocked')
     def list_blocked(self, request):
         from .models import Block
         from .serializers import MinimalUserSerializer

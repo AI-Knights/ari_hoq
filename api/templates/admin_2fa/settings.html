@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin 2FA Settings</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .card {
+            background: var(--card);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+        }
+        h1 { margin-bottom: 1rem; font-size: 1.5rem; }
+        .status {
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            display: inline-block;
+            margin-bottom: 1.5rem;
+        }
+        .status-on { background: #dcfce7; color: #166534; }
+        .status-off { background: #fee2e2; color: #991b1b; }
+        .qr-container { margin: 1.5rem 0; }
+        .secret-box {
+            background: #f1f5f9;
+            padding: 0.75rem;
+            border-radius: 6px;
+            font-family: monospace;
+            word-break: break-all;
+            margin-top: 0.5rem;
+        }
+        input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            margin: 1rem 0;
+            box-sizing: border-box;
+            text-align: center;
+            font-size: 1.25rem;
+            letter-spacing: 0.25rem;
+        }
+        button {
+            width: 100%;
+            padding: 0.75rem;
+            border: none;
+            border-radius: 6px;
+            background: var(--primary);
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        button:hover { opacity: 0.9; }
+        button.disable { background: #ef4444; }
+        .error { color: #ef4444; font-size: 0.875rem; margin-top: 0.5rem; }
+        .back { display: block; margin-top: 1.5rem; color: #64748b; text-decoration: none; font-size: 0.875rem; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>2FA Settings</h1>
+        
+        {% if user.is_2fa_enabled %}
+            <div class="status status-on">✓ 2FA is Active</div>
+            <p>Your account is secured with two-factor authentication.</p>
+            <form method="POST" action="{% url '2fa-disable' %}">
+                {% csrf_token %}
+                <button type="submit" class="disable">Disable 2FA</button>
+            </form>
+        {% else %}
+            <div class="status status-off">✗ 2FA is Disabled</div>
+            
+            {% if qr_data %}
+                <div class="qr-container">
+                    <p>Scan this QR code with your authenticator app:</p>
+                    <img src="data:image/png;base64,{{ qr_data }}" alt="2FA QR Code">
+                    <div class="secret-box">{{ secret }}</div>
+                </div>
+                
+                <form method="POST" action="{% url '2fa-setup' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="secret" value="{{ secret }}">
+                    <input type="text" name="code" placeholder="000000" maxlength="6" required autofocus>
+                    <button type="submit">Verify & Enable</button>
+                </form>
+            {% else %}
+                <form method="POST" action="{% url '2fa-enable' %}">
+                    {% csrf_token %}
+                    <button type="submit">Enable 2FA</button>
+                </form>
+            {% endif %}
+        {% endif %}
+
+        {% if error %}
+            <div class="error">{{ error }}</div>
+        {% endif %}
+
+        <a href="/admin/" class="back">← Back to Admin Panel</a>
+    </div>
+</body>
+</html>

@@ -50,6 +50,7 @@ class UserSerializer(serializers.ModelSerializer):
     name = serializers.SerializerMethodField()
     avatar = serializers.SerializerMethodField()
     availability = serializers.SerializerMethodField()
+    hifz_progress = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -57,7 +58,8 @@ class UserSerializer(serializers.ModelSerializer):
             'id', 'email', 'name', 'username', 'full_name', 'avatar', 'role',
             'level', 'bio', 'location', 'timezone', 'primary_language', 'gender',
             'memorized_surahs_count', 'current_streak', 'is_suspended',
-            'warnings_count', 'date_joined', 'last_active', 'availability'
+            'warnings_count', 'is_2fa_enabled', 'date_joined', 'last_active', 'availability',
+            'hifz_progress'
         ]
         read_only_fields = ['id', 'email', 'date_joined', 'last_active']
 
@@ -77,6 +79,14 @@ class UserSerializer(serializers.ModelSerializer):
     def get_availability(self, obj):
         slots = obj.availability.all()
         return AvailabilitySerializer(slots, many=True).data
+
+    def get_hifz_progress(self, obj):
+        # We only return the detailed hifz progress if it was prefetched
+        # to prevent N+1 queries on generic list endpoints.
+        if '_prefetched_objects_cache' in obj.__dict__ and 'hifz_progress' in obj._prefetched_objects_cache:
+            hifz = obj.hifz_progress.all()
+            return [{'surah_number': h.surah_number, 'status': h.status} for h in hifz]
+        return None
 
 
 # ---------------------------------------------------------------------------

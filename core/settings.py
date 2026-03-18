@@ -133,6 +133,15 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle'
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '100/day',
+        'user': '1000/day',
+        '2fa_verify': '5/minute', # Block brute-force on 6-digit codes
+    },
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 50,
 }
@@ -181,6 +190,12 @@ CORS_ALLOW_HEADERS = [
     'x-requested-with',
 ]
 
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'https://dev.projectyard.top',
+]
+
 # ---- CLOUDINARY STORAGE ----
 import cloudinary
 
@@ -207,3 +222,8 @@ STORAGES = {
 # ---- AGORA ----
 AGORA_APP_ID = os.environ.get('AGORA_APP_ID', '')
 AGORA_APP_CERTIFICATE = os.environ.get('AGORA_APP_CERTIFICATE', '')
+
+# ---- Authentication Redirects ----
+LOGIN_URL = '/admin/login/'
+LOGIN_REDIRECT_URL = '/admin/'
+LOGOUT_REDIRECT_URL = '/admin/login/'

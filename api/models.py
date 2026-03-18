@@ -83,6 +83,10 @@ class UserAccount(AbstractBaseUser, PermissionsMixin):
     date_joined = models.DateTimeField(default=tz.now)
     last_active = models.DateTimeField(auto_now=True)
 
+    # 2FA for Admins
+    totp_secret = models.CharField(max_length=32, null=True, blank=True)
+    is_2fa_enabled = models.BooleanField(default=False)
+
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["full_name"]
 
