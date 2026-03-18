@@ -5,7 +5,7 @@ import { Card } from '../../../src/components/ui/Card';
 import { Input } from '../../../src/components/ui/Input';
 import { Button } from '../../../src/components/ui/Button';
 import { Avatar } from '../../../src/components/ui/Avatar';
-import { Camera, Save, CheckCircle, Settings as SettingsIcon } from 'lucide-react';
+import { Camera, Save, CheckCircle, Shield, Settings as SettingsIcon } from 'lucide-react';
 import { useAuth } from '../../../src/contexts/AuthContext';
 import { api } from '../../../src/lib/api';
 
@@ -28,6 +28,13 @@ export default function AdminSettingsPage() {
     const [isChangingPassword, setIsChangingPassword] = useState(false);
     const [passwordSuccess, setPasswordSuccess] = useState(false);
     const [passwordError, setPasswordError] = useState('');
+
+    // 2FA State
+    const [is2FALoading, setIs2FALoading] = useState(false);
+    const [qrData, setQrData] = useState<string | null>(null);
+    const [totpSecret, setTotpSecret] = useState<string | null>(null);
+    const [verificationCode, setVerificationCode] = useState('');
+    const [twoFAError, setTwoFAError] = useState('');
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -86,6 +93,50 @@ export default function AdminSettingsPage() {
             setPasswordError(error.message || 'Failed to change password. Please verify your current password.');
         } finally {
             setIsChangingPassword(false);
+        }
+    };
+
+    const handleEnable2FAInit = async () => {
+        setIs2FALoading(true);
+        setTwoFAError('');
+        try {
+            const data = await api.auth.enable2FAInit();
+            setQrData(data.qr_data);
+            setTotpSecret(data.secret);
+        } catch (error: any) {
+            setTwoFAError(error.message || 'Failed to initiate 2FA setup.');
+        } finally {
+            setIs2FALoading(false);
+        }
+    };
+
+    const handleSetup2FA = async () => {
+        if (!totpSecret || !verificationCode) return;
+        setIs2FALoading(true);
+        setTwoFAError('');
+        try {
+            await api.auth.setup2FA({ secret: totpSecret, code: verificationCode });
+            await updateUser({ ...user, is_2fa_enabled: true } as any);
+            setQrData(null);
+            setTotpSecret(null);
+            setVerificationCode('');
+        } catch (error: any) {
+            setTwoFAError(error.message || 'Invalid verification code.');
+        } finally {
+            setIs2FALoading(false);
+        }
+    };
+
+    const handleDisable2FA = async () => {
+        setIs2FALoading(true);
+        setTwoFAError('');
+        try {
+            await api.auth.disable2FA();
+            await updateUser({ ...user, is_2fa_enabled: false } as any);
+        } catch (error: any) {
+            setTwoFAError(error.message || 'Failed to disable 2FA.');
+        } finally {
+            setIs2FALoading(false);
         }
     };
 
@@ -162,6 +213,87 @@ export default function AdminSettingsPage() {
                                 )}
                             </Button>
                         </div>
+                    </Card>
+
+                    {/* 2FA API UI Card */}
+                    <Card className="p-6">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                            <div className="flex items-center gap-4">
+                                <div className="p-2 bg-[#D4AF37]/10 rounded-lg">
+                                    <Shield className="w-6 h-6 text-[#D4AF37]" />
+                                </div>
+                                <div>
+                                    <h3 className="font-serif font-bold text-theme-text">Two-Factor Authentication</h3>
+                                    <div className="flex items-center gap-2 text-sm">
+                                        <div className={`w-2 h-2 rounded-full ${user?.is_2fa_enabled ? 'bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.5)]' : 'bg-gray-400'}`}></div>
+                                        <span className={user?.is_2fa_enabled ? 'text-green-500' : 'text-theme-text-secondary'}>
+                                            {user?.is_2fa_enabled ? 'Active & Secure' : 'Currently Disabled'}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {!qrData && (
+                                <Button
+                                    onClick={user?.is_2fa_enabled ? handleDisable2FA : handleEnable2FAInit}
+                                    variant={user?.is_2fa_enabled ? 'danger' : 'secondary'}
+                                    size="sm"
+                                    isLoading={is2FALoading}
+                                    className={!user?.is_2fa_enabled ? "border-[#D4AF37] text-[#D4AF37] hover:bg-[#D4AF37]/10 px-8" : "px-8"}
+                                >
+                                    {user?.is_2fa_enabled ? 'Disable 2FA' : 'Enable 2FA'}
+                                </Button>
+                            )}
+                        </div>
+
+                        {twoFAError && (
+                            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-500 text-sm">
+                                {twoFAError}
+                            </div>
+                        )}
+
+                        {qrData && (
+                            <div className="mt-6 p-6 bg-theme-bg-secondary rounded-lg border border-theme-border flex flex-col items-center">
+                                <p className="text-theme-text font-medium mb-4 text-center">
+                                    Scan this QR code with your authenticator app:
+                                </p>
+                                <div className="bg-white p-2 rounded-xl mb-4 shadow-sm">
+                                    <img src={qrData} alt="2FA QR Code" className="w-48 h-48" />
+                                </div>
+                                <div className="mb-6 px-4 py-2 bg-theme-bg rounded-md border border-theme-border text-center">
+                                    <p className="text-sm text-theme-text-secondary mb-1">Or enter this secret manually:</p>
+                                    <code className="text-[#D4AF37] font-mono tracking-wider">{totpSecret}</code>
+                                </div>
+                                
+                                <div className="w-full max-w-xs space-y-4">
+                                    <Input
+                                        placeholder="000000"
+                                        value={verificationCode}
+                                        onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                        className="text-center text-xl tracking-[0.5em] font-mono"
+                                        maxLength={6}
+                                    />
+                                    <div className="flex gap-3">
+                                        <Button
+                                            onClick={() => { setQrData(null); setTotpSecret(null); setTwoFAError(''); }}
+                                            variant="ghost"
+                                            className="flex-1"
+                                            disabled={is2FALoading}
+                                        >
+                                            Cancel
+                                        </Button>
+                                        <Button
+                                            onClick={handleSetup2FA}
+                                            disabled={verificationCode.length !== 6 || is2FALoading}
+                                            isLoading={is2FALoading}
+                                            className="flex-1"
+                                        >
+                                            Verify
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </Card>
 
                     {/* Change Password Card */}

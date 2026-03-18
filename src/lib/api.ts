@@ -93,7 +93,11 @@ export async function apiFetch<T = any>(
         } catch { /* non-JSON body */ }
         
         console.error(`[apiFetch Failed] URL: ${API_BASE}${path} | Status: ${response.status} | Error: ${errorMessage}`);
-        throw new Error(errorMessage);
+        
+        // Pass the errorData object so that callers can extract specific fields
+        const err = new Error(errorMessage) as any;
+        err.response = { status: response.status, data: { detail: errorMessage, error: errorMessage } };
+        throw err;
     }
 
     if (response.status === 204) return undefined as T;
@@ -127,6 +131,14 @@ export const api = {
             apiFetch<{ reset_token: string }>('/auth/password-reset/', { method: 'POST', body: JSON.stringify(data), skipAuth: true }),
         passwordResetConfirm: (data: { reset_token: string; otp: string; new_password: string }) =>
             apiFetch('/auth/password-reset/confirm/', { method: 'POST', body: JSON.stringify(data), skipAuth: true }),
+        enable2FAInit: () =>
+            apiFetch<{ qr_data: string, secret: string }>('/auth/2fa/enable/init/', { method: 'POST' }),
+        setup2FA: (data: { secret: string, code: string }) =>
+            apiFetch<{ detail: string, is_2fa_enabled: boolean }>('/auth/2fa/setup/', { method: 'POST', body: JSON.stringify(data) }),
+        disable2FA: () =>
+            apiFetch<{ detail: string, is_2fa_enabled: boolean }>('/auth/2fa/disable/', { method: 'POST' }),
+        verify2FALogin: (data: { two_fa_token: string, code: string }) =>
+            apiFetch('/auth/2fa/login/verify/', { method: 'POST', body: JSON.stringify(data), skipAuth: true }),
     },
     dashboard: { stats: () => apiFetch('/dashboard/stats/') },
     availability: {
@@ -150,7 +162,7 @@ export const api = {
     },
     friends: {
         list: () => apiFetch('/friends/'),
-        sendRequest: (data: { username?: string; user_id?: number; message: string }) =>
+        sendRequest: (data: { username?: string; user_id?: string | number; message: string }) =>
             apiFetch('/friends/request/', { method: 'POST', body: JSON.stringify(data) }),
         accept: (id: number) => apiFetch(`/friends/${id}/accept/`, { method: 'POST' }),
         decline: (id: number) => apiFetch(`/friends/${id}/decline/`, { method: 'POST' }),
@@ -169,7 +181,7 @@ export const api = {
             apiFetch('/friends/report_and_block/', { method: 'POST', body: JSON.stringify(data) }),
         unblock: (user_id: string | number) =>
             apiFetch('/friends/unblock/', { method: 'POST', body: JSON.stringify({ user_id }) }),
-        listBlocked: () => apiFetch('/friends/list_blocked/'),
+        listBlocked: () => apiFetch('/friends/blocked/'),
     },
     users: {
         search: (query: string) => apiFetch(`/users/?search=${encodeURIComponent(query)}`),

@@ -8,10 +8,10 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Mail, Lock, ArrowRight, RefreshCw, ShieldCheck, Eye, EyeOff, Check, X as XIcon } from 'lucide-react';
 
-type Step = 'login' | 'signup' | 'verify';
+type Step = 'login' | 'signup' | 'verify' | '2fa';
 
 export function AuthPage() {
-  const { login, register, verifyEmail, resendCode, user } = useAuth();
+  const { login, register, verifyEmail, resendCode, user, verify2FALogin } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -37,6 +37,8 @@ export function AuthPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [resendCooldown, setResendCooldown] = useState(0);
+
+  const [twoFaToken, setTwoFaToken] = useState('');
 
   const handleOtpChange = (i: number, value: string) => {
     if (!/^\d*$/.test(value)) return;
@@ -66,15 +68,45 @@ export function AuthPage() {
     setError('');
     setIsLoading(true);
     try {
-      const loggedInUser = await login(email, password);
+      const result = await login(email, password);
+      
+      if ('requires_2fa' in result && result.requires_2fa) {
+        setTwoFaToken(result.two_fa_token);
+        setOtp(['', '', '', '', '', '']); // Clear OTP fields just in case
+        setStep('2fa');
+        return; // Stop here, wait for 2FA code
+      }
+
       // User is now set in AuthContext — push directly to avoid refresh flash
-      if (loggedInUser.role === 'admin') {
+      if ('role' in result && result.role === 'admin') {
         router.push('/admin');
       } else {
         router.push('/dashboard');
       }
     } catch (err: any) {
       setError(err.message || 'Login failed. Please check your credentials.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleVerify2FA = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const code = otp.join('');
+    if (code.length < 6) { setError('Please enter the 6-digit code.'); return; }
+    setError('');
+    setIsLoading(true);
+    try {
+      const verifiedUser = await verify2FALogin(twoFaToken, code);
+      if (verifiedUser.role === 'admin') {
+        router.push('/admin');
+      } else {
+        router.push('/dashboard');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Invalid 2FA code.');
+      setOtp(['', '', '', '', '', '']);
+      otpRefs.current[0]?.focus();
     } finally {
       setIsLoading(false);
     }
@@ -401,6 +433,77 @@ export function AuthPage() {
                     className="block mx-auto text-sm text-theme-text-muted hover:text-theme-text-secondary"
                   >
                     ← Use a different email
+                  </button>
+                </div>
+              </motion.div>
+            )}
+            {/* ── 2FA Verification ── */}
+            {step === '2fa' && (
+              <motion.div
+                key="2fa"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+              >
+                <div className="flex justify-center mb-6">
+                  <div className="w-16 h-16 rounded-full bg-[#D4AF37]/10 border border-[#D4AF37]/30 flex items-center justify-center">
+                    <ShieldCheck className="w-8 h-8 text-[#D4AF37]" />
+                  </div>
+                </div>
+
+                <h2 className="text-2xl sm:text-3xl font-serif font-bold text-theme-text text-center mb-2">Two-Factor Auth</h2>
+                <p className="text-theme-text-secondary text-center mb-6 sm:mb-8 text-sm sm:text-base">
+                  Enter the 6-digit code from your authenticator app to continue.
+                </p>
+
+                {error && (
+                  <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg text-sm text-center">
+                    {error}
+                  </div>
+                )}
+
+                <form onSubmit={handleVerify2FA}>
+                  {/* OTP input boxes */}
+                  <div className="flex gap-2 sm:gap-3 justify-center mb-6 sm:mb-8">
+                    {otp.map((digit, i) => (
+                      <input
+                        key={i}
+                        ref={el => { otpRefs.current[i] = el; }}
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={1}
+                        value={digit}
+                        onChange={e => handleOtpChange(i, e.target.value)}
+                        onKeyDown={e => handleOtpKeyDown(i, e)}
+                        onPaste={e => {
+                          const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+                          if (pasted.length === 6) {
+                            const arr = pasted.split('');
+                            setOtp(arr);
+                            otpRefs.current[5]?.focus();
+                          }
+                        }}
+                        className="w-10 h-12 sm:w-12 sm:h-14 text-center text-lg sm:text-xl font-bold rounded-xl border-2 focus:outline-none transition-all"
+                        style={{
+                          color: '#0A1A3A',
+                          backgroundColor: '#FFFFFF',
+                          borderColor: '#D4AF37',
+                        }}
+                      />
+                    ))}
+                  </div>
+
+                  <Button type="submit" size="lg" className="w-full mb-4" isLoading={isLoading}>
+                    Verify & Sign In
+                  </Button>
+                </form>
+
+                <div className="text-center mt-6">
+                  <button
+                    onClick={() => { setStep('login'); setError(''); setOtp(['', '', '', '', '', '']); }}
+                    className="text-sm text-theme-text-muted hover:text-theme-text-secondary"
+                  >
+                    ← Back to Sign In
                   </button>
                 </div>
               </motion.div>

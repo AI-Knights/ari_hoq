@@ -100,7 +100,7 @@ export function PartnerCard({ match, onAccept, onDecline, onProfile }: PartnerCa
           </Button>
           <Button
             variant="ghost"
-            className="flex-1 py-4 text-lg"
+            className="flex-1 py-4 text-lg hover:bg-theme-bg-hover hover:text-[#D4AF37] hover:scale-[1.02] transition-all shadow-sm hover:shadow-md"
             onClick={onDecline}
             leftIcon={<X className="w-5 h-5" />}>
 

@@ -26,18 +26,21 @@ interface User {
     is_suspended?: boolean;
     current_streak?: number;
     memorized_surahs_count?: number;
+    is_2fa_enabled?: boolean;
 }
 
-interface AuthContextType {
+export interface AuthContextType {
     user: User | null;
     isAuthenticated: boolean;
     isLoading: boolean;
+    login: (email: string, password: string) => Promise<User | { requires_2fa: true, two_fa_token: string }>;
+    verify2FALogin: (two_fa_token: string, code: string) => Promise<User>;
     register: (email: string, password: string, username?: string) => Promise<{ email: string }>;
     verifyEmail: (email: string, code: string) => Promise<User>;
     resendCode: (email: string) => Promise<void>;
-    login: (email: string, password: string) => Promise<User>;
     logout: () => Promise<void>;
-    updateUser: (data: Partial<User> | FormData | object) => void;
+    updateUser: (updates: Partial<User> | FormData | object) => void;
+    refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -58,6 +61,7 @@ function mapUser(data: any): User {
         is_suspended: data.is_suspended,
         current_streak: data.current_streak,
         memorized_surahs_count: data.memorized_surahs_count,
+        is_2fa_enabled: data.is_2fa_enabled,
     };
 }
 
@@ -94,28 +98,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
+    const refreshUser = useCallback(async () => {
+        setIsLoading(true);
+        try {
+            const data = await authFetch('/api/auth/session');
+            if (data?.user) {
+                try {
+                    const profile = await api.auth.me();
+                    setUser(mapUser(profile));
+                } catch {
+                    setUser(mapUser(data.user));
+                }
+            } else {
+                setUser(null);
+            }
+        } catch {
+            setUser(null);
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
     // On mount: restore session by asking our server-side /api/auth/session endpoint.
     // It reads the httpOnly access_token cookie and returns the decoded user claims.
     useEffect(() => {
-        (async () => {
-            try {
-                const data = await authFetch('/api/auth/session');
-                if (data?.user) {
-                    // Session route only has JWT claims — fetch full profile for extra fields
-                    try {
-                        const profile = await api.auth.me();
-                        setUser(mapUser(profile));
-                    } catch {
-                        setUser(mapUser(data.user));
-                    }
-                }
-            } catch {
-                setUser(null);
-            } finally {
-                setIsLoading(false);
-            }
-        })();
-    }, []);
+        refreshUser();
+    }, [refreshUser]);
 
     const register = useCallback(async (email: string, password: string, username?: string) => {
         const { registerAction } = await import('../lib/actions/auth');
@@ -141,19 +149,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const login = useCallback(async (email: string, password: string) => {
-        const { loginAction } = await import('../lib/actions/auth');
-        
-        const formData = new FormData();
-        formData.append('email', email);
-        formData.append('password', password);
-        
-        const res = await loginAction(formData);
-        if (!res.success) throw new Error(res.error);
+        try {
+            const response = await api.auth.login({ email, password });
+            if (response.requires_2fa) {
+                return { requires_2fa: true as const, two_fa_token: response.two_fa_token };
+            }
+            if (response.user) {
+                setUser(mapUser(response.user));
+                return mapUser(response.user);
+            }
+            throw new Error('Invalid login response');
+        } catch (err: any) {
+            console.error('Login error:', err);
+            // In api.ts we attach the error string to err.message and err.response.data.detail
+            throw new Error(err.message || err.response?.data?.error || err.response?.data?.detail || 'Login failed. Please check your credentials.');
+        }
+    }, []);
 
-        const data = res.data as any;
-        const mapped = mapUser(data.user);
-        setUser(mapped);
-        return mapped;
+    const verify2FALogin = useCallback(async (two_fa_token: string, code: string) => {
+        try {
+            const response = await api.auth.verify2FALogin({ two_fa_token, code });
+            if (response.user) {
+                setUser(mapUser(response.user));
+                return mapUser(response.user);
+            }
+            throw new Error('Invalid verification response');
+        } catch (err: any) {
+            console.error('2FA Verification error:', err);
+            throw new Error(err.response?.data?.error || err.response?.data?.detail || 'Verification failed');
+        }
     }, []);
 
     const logout = useCallback(async () => {
@@ -199,8 +223,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             verifyEmail,
             resendCode,
             login,
+            verify2FALogin,
             logout,
             updateUser,
+            refreshUser,
         }}>
             {children}
         </AuthContext.Provider>

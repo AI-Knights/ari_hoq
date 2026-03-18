@@ -84,7 +84,7 @@ export function PublicProfilePage({ userId }: { userId: string }) {
 
     const handleSendRequest = async () => {
         try {
-            await api.friends.sendRequest({ user_id: parseInt(userId, 10), message: "Salam! I'd like to connect." });
+            await api.friends.sendRequest({ user_id: userId, message: "Salam! I'd like to connect." });
             setFriendshipStatus('pending');
         } catch (err) {
             console.error('Failed to send request', err);
@@ -254,6 +254,51 @@ export function PublicProfilePage({ userId }: { userId: string }) {
                         </p>
                     </Card>
                 </div>
+
+                {/* Availability Schedule */}
+                <Card className="p-8 border-theme-border/50 bg-theme-bg">
+                    <h2 className="text-xl font-bold text-theme-text mb-6">Weekly Availability</h2>
+                    {(!profile.availability || profile.availability.length === 0) ? (
+                        <p className="text-theme-text-secondary text-sm">
+                            This user hasn't set up their weekly availability schedule yet.
+                        </p>
+                    ) : (
+                        <div className="w-full min-w-[250px] overflow-x-auto">
+                           <div className="grid gap-1 sm:gap-2 mb-2 min-w-[300px]" style={{ gridTemplateColumns: 'auto repeat(7, 1fr)' }}>
+                               <div className="text-xs text-theme-text-secondary pr-2 min-w-[70px]"></div>
+                               {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
+                                   <div key={day} className="text-xs text-center text-theme-text-secondary font-medium">
+                                       {day}
+                                   </div>
+                               ))}
+                           </div>
+                           
+                           {['Morning', 'Afternoon', 'Evening', 'Night'].map(time => (
+                               <div key={time} className="grid gap-1 sm:gap-2 mb-2 min-w-[300px]" style={{ gridTemplateColumns: 'auto repeat(7, 1fr)' }}>
+                                   <div className="text-xs text-theme-text-secondary flex items-center pr-2 min-w-[70px]">
+                                       {time}
+                                   </div>
+                                   {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => {
+                                       const isAvailable = profile.availability.some((s: any) => s.day_of_week === day && s.time_slot === time);
+                                       return (
+                                           <div 
+                                               key={`${day}-${time}`} 
+                                               className={`h-8 rounded-md border ${
+                                                   isAvailable 
+                                                       ? 'bg-[#D4AF37] border-[#D4AF37] shadow-[0_0_10px_rgba(212,175,55,0.3)]' 
+                                                       : 'bg-theme-bg-hover border-theme-border/50'
+                                               }`} 
+                                           />
+                                       );
+                                   })}
+                               </div>
+                           ))}
+                           <p className="text-xs text-theme-text-secondary mt-4 text-center">
+                               Times are approximate according to the user's timezone ({profile.timezone || 'Not set'}).
+                           </p>
+                        </div>
+                    )}
+                </Card>
 
             </div>
         </DashboardLayout>

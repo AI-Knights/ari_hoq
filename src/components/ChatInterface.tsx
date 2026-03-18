@@ -394,11 +394,16 @@ export function ChatInterface({
                     })}
                   </p>
                   {isMe && (
-                    <span className="ml-0.5">
+                    <span className="ml-1 flex items-center">
                       {msg.status === 'read' ? (
-                        <CheckCheck className="w-[14px] h-[14px] text-[#0A1A3A]" />
+                        <span className="flex items-center gap-1 bg-[#0A1A3A]/5 px-1.5 py-0.5 rounded-full">
+                          <CheckCheck className="w-[12px] h-[12px] text-[#0A1A3A]/80" />
+                          <span className="text-[9px] font-bold text-[#0A1A3A]/70 uppercase tracking-widest pt-[0.5px]">READ</span>
+                        </span>
                       ) : (
-                        <Check className="w-[14px] h-[14px] text-[#0A1A3A]/40" />
+                        <span className="flex items-center gap-1 px-1.5 py-0.5">
+                          <Check className="w-[12px] h-[12px] text-[#0A1A3A]/40" />
+                        </span>
                       )}
                     </span>
                   )}

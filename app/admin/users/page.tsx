@@ -35,6 +35,7 @@ interface UserRecord {
     date_joined?: string;
     last_active?: string;
     availability?: AvailabilitySlot[];
+    hifz_progress?: { surah_number: number; status: string }[];
 }
 
 export default function AdminUsersPage() {
@@ -285,6 +286,40 @@ export default function AdminUsersPage() {
                                 {selectedUser.bio || 'No bio provided.'}
                             </p>
                         </div>
+
+                        {/* Hifz Progress Grid */}
+                        {selectedUser.hifz_progress && selectedUser.hifz_progress.length > 0 && (
+                            <div>
+                                <p className="text-xs text-theme-text-secondary uppercase tracking-wider mb-3">Hifz Progress</p>
+                                <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-2">
+                                    {selectedUser.hifz_progress.map((progress) => {
+                                        let bgColor = 'bg-theme-bg border border-theme-border';
+                                        let textColor = 'text-theme-text-secondary';
+                                        
+                                        if (progress.status === 'mastered') {
+                                            bgColor = 'bg-green-500/20 border-green-500/30';
+                                            textColor = 'text-green-500 font-medium';
+                                        } else if (progress.status === 'reviewing') {
+                                            bgColor = 'bg-yellow-500/20 border-yellow-500/30';
+                                            textColor = 'text-yellow-500 font-medium';
+                                        } else if (progress.status === 'memorizing') {
+                                            bgColor = 'bg-blue-500/20 border-blue-500/30';
+                                            textColor = 'text-blue-500 font-medium';
+                                        }
+                                        
+                                        return (
+                                            <div 
+                                                key={progress.surah_number} 
+                                                className={`flex items-center justify-center h-8 rounded text-xs ${bgColor} ${textColor}`}
+                                                title={`Surah ${progress.surah_number} - ${progress.status}`}
+                                            >
+                                                {progress.surah_number}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
 
                         {/* Weekly Availability Grid */}
                         {selectedUser.availability && selectedUser.availability.length > 0 && (() => {
