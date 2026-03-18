@@ -21,7 +21,13 @@ async function handler(
     { params }: { params: Promise<{ path: string[] }> }
 ) {
     const { path } = await params;
-    const djangoUrl = `${DJANGO}/api/${path.join('/')}/${request.nextUrl.search}`;
+    
+    // Construct the target URL safely
+    const searchParams = request.nextUrl.search;
+    const cleanPath = path.join('/');
+    const djangoUrl = `${DJANGO}/api/${cleanPath}/${searchParams}`;
+    // Remove any accidental double slashes (except after protocol)
+    const finalUrl = djangoUrl.replace(/([^:])\/\//g, '$1/');
 
     const cookieStore = await cookies();
     const accessToken = cookieStore.get('access_token')?.value;
@@ -46,16 +52,20 @@ async function handler(
     }
 
     const hasBody = request.method !== 'GET' && request.method !== 'HEAD';
+    
+    // Read the body fully into memory before forwarding to prevent stream truncation errors
+    let rawBody: ArrayBuffer | undefined = undefined;
+    if (hasBody) {
+        rawBody = await request.arrayBuffer();
+        forwardHeaders.set('Content-Length', rawBody.byteLength.toString());
+    }
 
     try {
-        const djangoRes = await fetch(djangoUrl, {
+        const djangoRes = await fetch(finalUrl, {
             method: request.method,
             headers: forwardHeaders,
-            // Pipe body as a raw ReadableStream — never touches FormData/JSON, no corruption
-            body: hasBody ? request.body : undefined,
-            // Required by Node.js fetch for streaming bodies
-            // @ts-ignore — duplex not in TS types but required at runtime
-            duplex: 'half',
+            body: hasBody ? rawBody : undefined,
+            cache: 'no-store'
         });
 
     // Return Django's response as-is (preserves Set-Cookie, Content-Type, etc.)
