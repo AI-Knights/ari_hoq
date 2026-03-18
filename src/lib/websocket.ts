@@ -21,7 +21,6 @@ export class WebSocketClient {
         this.socket = new WebSocket(this.url);
 
         this.socket.onopen = () => {
-            console.log(`[WS] 🟢 Connected to ${this.url}`);
             this.reconnectAttempts = 0;
             this.startHeartbeat();
             this.emit('open');
@@ -39,7 +38,6 @@ export class WebSocketClient {
         this.socket.onclose = (event) => {
             this.stopHeartbeat();
             if (!this.isIntentionallyClosed) {
-                console.log(`[WS] 🛑 Disconnected (Code: ${event.code}). Reconnecting...`);
                 this.emit('close', event);
                 this.scheduleReconnect();
             }
@@ -109,7 +107,6 @@ export class WebSocketClient {
 
     private scheduleReconnect() {
         const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), this.maxReconnectDelay);
-        console.log(`[WS] 🔄 Reconnecting in ${delay}ms... (Attempt ${this.reconnectAttempts + 1})`);
 
         clearTimeout(this.reconnectTimer);
         this.reconnectTimer = setTimeout(() => {
