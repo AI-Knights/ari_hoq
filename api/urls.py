@@ -44,6 +44,7 @@ urlpatterns = [
     path('admin/stats/', views.AdminStatsView.as_view(), name='admin-stats'),
     path('admin/users/', views.AdminUsersListView.as_view(), name='admin-users-list'),
     path('admin/users/<uuid:user_id>/ban/', views.AdminBanUserView.as_view(), name='admin-ban-user'),
+    path('admin/users/<uuid:user_id>/delete/', views.AdminDeleteUserView.as_view(), name='admin-delete-user'),
     path('admin/users/<uuid:user_id>/role/', views.AdminChangeRoleView.as_view(), name='admin-change-role'),
 
     # DRF router (viewsets)

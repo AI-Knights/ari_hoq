@@ -146,6 +146,8 @@ class LoginSerializer(serializers.Serializer):
             raise serializers.ValidationError("Invalid email or password.")
         if not user.is_active:
             raise serializers.ValidationError("Account not verified. Please check your email.")
+        if user.is_suspended:
+            raise serializers.ValidationError("Your account has been suspended by an administrator.")
         data['user'] = user
         return data
 

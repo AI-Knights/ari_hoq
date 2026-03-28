@@ -25,3 +25,12 @@ class CookieJWTAuthentication(JWTAuthentication):
                 return None
 
         return None
+
+    def get_user(self, validated_token):
+        from django.utils.translation import gettext_lazy as _
+        from rest_framework_simplejwt.exceptions import AuthenticationFailed
+        
+        user = super().get_user(validated_token)
+        if user.is_suspended:
+            raise AuthenticationFailed(_("User account is suspended"), code="user_suspended")
+        return user

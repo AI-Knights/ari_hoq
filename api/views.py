@@ -299,6 +299,9 @@ class DeleteAccountView(APIView):
     """Delete user account - requires password confirmation."""
     permission_classes = [permissions.IsAuthenticated]
 
+    def delete(self, request, *args, **kwargs):
+        return self.post(request, *args, **kwargs)
+
     def post(self, request):
         password = request.data.get('password')
         if not password:
@@ -676,6 +679,25 @@ class AdminBanUserView(APIView):
         target.save(update_fields=['is_suspended'])
         word = 'suspended' if target.is_suspended else 'unsuspended'
         return Response({'status': f'User {word}', 'is_suspended': target.is_suspended})
+
+
+class AdminDeleteUserView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request, user_id):
+        if not is_admin_or_mod(request.user):
+            return Response({'error': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            target = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        if target == request.user:
+            return Response({'error': 'You cannot delete your own account from here.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        target.delete()
+        return Response({'status': 'User deleted permanently'})
 
 
 class AdminChangeRoleView(APIView):
