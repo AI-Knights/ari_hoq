@@ -5,7 +5,7 @@ import { Card } from '../../../src/components/ui/Card';
 import { Button } from '../../../src/components/ui/Button';
 import { Input } from '../../../src/components/ui/Input';
 import { Badge } from '../../../src/components/ui/Badge';
-import { Search, Ban, Eye, Loader2, CheckCircle, AlertTriangle, ShieldAlert } from 'lucide-react';
+import { Search, Ban, Eye, Loader2, CheckCircle, AlertTriangle, ShieldAlert, Trash2 } from 'lucide-react';
 import { api } from '../../../src/lib/api';
 import { Avatar } from '../../../src/components/ui/Avatar';
 import { Modal } from '../../../src/components/ui/Modal';
@@ -48,6 +48,8 @@ export default function AdminUsersPage() {
     const [selectedUser, setSelectedUser] = useState<UserRecord | null>(null);
     const [userToSuspend, setUserToSuspend] = useState<UserRecord | null>(null);
     const [isBanning, setIsBanning] = useState(false);
+    const [userToDelete, setUserToDelete] = useState<UserRecord | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     // Calculate status from last_active timestamp (3 minutes threshold)
     const getUserStatus = (user: UserRecord): 'online' | 'offline' => {
@@ -101,6 +103,23 @@ export default function AdminUsersPage() {
         } finally {
             setIsBanning(false);
             setUserToSuspend(null);
+        }
+    };
+
+    const handleDeleteConfirm = async () => {
+        if (!userToDelete) return;
+        setIsDeleting(true);
+        try {
+            await api.admin.deleteUser(userToDelete.id);
+            setUsers(prev => prev.filter(u => u.id !== userToDelete.id));
+            if (selectedUser?.id === userToDelete.id) {
+                setSelectedUser(null);
+            }
+        } catch (err) {
+            console.error('Delete failed', err);
+        } finally {
+            setIsDeleting(false);
+            setUserToDelete(null);
         }
     };
 
@@ -200,6 +219,13 @@ export default function AdminUsersPage() {
                                                         }`}
                                                     >
                                                         {isSuspended(user) ? <CheckCircle className="w-4 h-4" /> : <Ban className="w-4 h-4" />}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setUserToDelete(user)}
+                                                        title="Permanently Delete User"
+                                                        className="p-2 text-red-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all ml-1"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
                                                     </button>
                                                 </div>
                                             </td>
@@ -368,16 +394,27 @@ export default function AdminUsersPage() {
                                 Close
                             </Button>
 
-                            <Button
-                                variant={isSuspended(selectedUser) ? 'primary' : 'danger'}
-                                onClick={() => setUserToSuspend(selectedUser)}
-                            >
-                                {isSuspended(selectedUser) ? (
-                                    <><CheckCircle className="w-4 h-4 mr-2" /> Reactivate Account</>
-                                ) : (
-                                    <><Ban className="w-4 h-4 mr-2" /> Suspend Account</>
-                                )}
-                            </Button>
+                            <div className="flex gap-2">
+                                <Button
+                                    variant="danger"
+                                    onClick={() => {
+                                        setSelectedUser(null);
+                                        setUserToDelete(selectedUser);
+                                    }}
+                                >
+                                    <Trash2 className="w-4 h-4 mr-2" /> Delete Account
+                                </Button>
+                                <Button
+                                    variant={isSuspended(selectedUser) ? 'primary' : 'danger'}
+                                    onClick={() => setUserToSuspend(selectedUser)}
+                                >
+                                    {isSuspended(selectedUser) ? (
+                                        <><CheckCircle className="w-4 h-4 mr-2" /> Reactivate Account</>
+                                    ) : (
+                                        <><Ban className="w-4 h-4 mr-2" /> Suspend Account</>
+                                    )}
+                                </Button>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -422,6 +459,48 @@ export default function AdminUsersPage() {
                                 isLoading={isBanning}
                             >
                                 Yes, {isSuspended(userToSuspend) ? 'Reactivate' : 'Suspend'}
+                            </Button>
+                        </div>
+                    </div>
+                )}
+            </Modal>
+
+            {/* Delete User Confirmation Modal */}
+            <Modal
+                isOpen={!!userToDelete}
+                onClose={() => !isDeleting && setUserToDelete(null)}
+                title="Permanently Delete User"
+                maxWidth="sm"
+            >
+                {userToDelete && (
+                    <div className="space-y-6 text-center">
+                        <div className="mx-auto w-12 h-12 rounded-full flex items-center justify-center bg-red-500/10 text-red-500">
+                            <Trash2 className="w-6 h-6" />
+                        </div>
+
+                        <div>
+                            <p className="text-theme-text mb-2">
+                                Are you sure you want to permanently delete <strong>{userToDelete.username}</strong>?
+                            </p>
+                            <p className="text-sm text-theme-text-secondary">
+                                This action cannot be undone. All user data, including progress and messages, will be permanently removed.
+                            </p>
+                        </div>
+
+                        <div className="flex gap-3 justify-center pt-4">
+                            <Button
+                                variant="secondary"
+                                onClick={() => setUserToDelete(null)}
+                                disabled={isDeleting}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                variant="danger"
+                                onClick={handleDeleteConfirm}
+                                isLoading={isDeleting}
+                            >
+                                Yes, Delete Permanently
                             </Button>
                         </div>
                     </div>

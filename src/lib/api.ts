@@ -216,6 +216,7 @@ export const api = {
     admin: {
         stats: () => apiFetch('/admin/stats/'),
         banUser: (userId: string) => apiFetch(`/admin/users/${userId}/ban/`, { method: 'POST' }),
+        deleteUser: (userId: string) => apiFetch(`/admin/users/${userId}/delete/`, { method: 'DELETE' }),
         changeRole: (userId: string, role: string) =>
             apiFetch(`/admin/users/${userId}/role/`, { method: 'POST', body: JSON.stringify({ role }) }),
         allUsers: (search?: string) =>
