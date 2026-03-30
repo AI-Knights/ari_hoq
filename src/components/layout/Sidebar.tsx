@@ -36,32 +36,38 @@ export function Sidebar() {
     {
       to: '/dashboard',
       icon: Home,
-      label: 'Home'
+      label: 'Home',
+      tourClass: 'tour-step-home'
     },
     {
       to: '/hifz-journey',
       icon: BookOpen,
-      label: 'Hifz Journey'
+      label: 'Hifz Journey',
+      tourClass: 'tour-step-hifz'
     },
     {
       to: '/find-partner',
       icon: Search,
-      label: 'Find Partner'
+      label: 'Find Partner',
+      tourClass: 'tour-step-partner'
     },
     {
       to: '/friends',
       icon: Users,
-      label: 'Friends'
+      label: 'Friends',
+      tourClass: 'tour-step-friends'
     },
     {
       to: '/chat',
       icon: MessageCircle,
-      label: 'Chat'
+      label: 'Chat',
+      tourClass: 'tour-step-chat'
     },
     {
       to: '/profile',
       icon: User,
-      label: 'Profile'
+      label: 'Profile',
+      tourClass: 'tour-step-profile'
     }];
 
   const adminLinks = [
@@ -105,7 +111,7 @@ export function Sidebar() {
             key={link.to}
             href={link.to}
             onClick={() => setIsMobileOpen(false)}
-            className={`flex items-center px-6 py-3 text-sm font-medium transition-colors ${pathname === link.to ? activeClass : inactiveClass}`}>
+            className={`flex items-center px-6 py-3 text-sm font-medium transition-colors ${link.tourClass || ''} ${pathname === link.to ? activeClass : inactiveClass}`}>
 
             <link.icon className="w-5 h-5 mr-3" />
             {link.label}

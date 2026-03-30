@@ -27,6 +27,7 @@ interface User {
     current_streak?: number;
     memorized_surahs_count?: number;
     is_2fa_enabled?: boolean;
+    has_completed_onboarding?: boolean;
 }
 
 export interface AuthContextType {
@@ -62,6 +63,7 @@ function mapUser(data: any): User {
         current_streak: data.current_streak,
         memorized_surahs_count: data.memorized_surahs_count,
         is_2fa_enabled: data.is_2fa_enabled,
+        has_completed_onboarding: data.has_completed_onboarding,
     };
 }
 

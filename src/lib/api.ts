@@ -139,6 +139,8 @@ export const api = {
             apiFetch<{ detail: string, is_2fa_enabled: boolean }>('/auth/2fa/disable/', { method: 'POST' }),
         verify2FALogin: (data: { two_fa_token: string, code: string }) =>
             apiFetch('/auth/2fa/login/verify/', { method: 'POST', body: JSON.stringify(data), skipAuth: true }),
+        completeOnboarding: () =>
+            apiFetch('/auth/complete-onboarding/', { method: 'POST' }),
     },
     dashboard: { stats: () => apiFetch('/dashboard/stats/') },
     availability: {

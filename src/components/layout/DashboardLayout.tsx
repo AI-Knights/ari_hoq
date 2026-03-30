@@ -3,6 +3,7 @@
 import React from 'react';
 import { Sidebar } from './Sidebar';
 import { IslamicPatterns } from '../IslamicPatterns';
+import { OnboardingTour } from '../ui/OnboardingTour';
 interface DashboardLayoutProps {
   children: React.ReactNode;
   isFullHeight?: boolean;
@@ -13,6 +14,8 @@ export function DashboardLayout({ children, isFullHeight = false }: DashboardLay
       <div className="fixed inset-0 z-0 opacity-30 pointer-events-none">
         <IslamicPatterns />
       </div>
+
+      <OnboardingTour />
 
       <Sidebar />
 
