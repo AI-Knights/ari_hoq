@@ -79,6 +79,7 @@ class UserAccount(AbstractBaseUser, PermissionsMixin):
 
     # Auth flags
     is_staff = models.BooleanField(default=False)
+    has_completed_onboarding = models.BooleanField(default=False)
     is_active = models.BooleanField(default=False)  # False until email verified
     date_joined = models.DateTimeField(default=tz.now)
     last_active = models.DateTimeField(auto_now=True)

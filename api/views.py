@@ -249,6 +249,17 @@ class CookieTokenRefreshView(APIView):
 
 from rest_framework.parsers import MultiPartParser, FormParser
 
+class CompleteOnboardingView(APIView):
+    """Marks the user's has_completed_onboarding flag to True"""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        user.has_completed_onboarding = True
+        user.save(update_fields=['has_completed_onboarding'])
+        return Response({'message': 'Onboarding completed successfully'})
+
+
 class ProfileView(generics.RetrieveUpdateAPIView):
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticated]

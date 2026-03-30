@@ -57,11 +57,11 @@ class UserSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'email', 'name', 'username', 'full_name', 'avatar', 'role',
             'level', 'bio', 'location', 'timezone', 'primary_language', 'gender',
-            'memorized_surahs_count', 'current_streak', 'is_suspended',
+            'memorized_surahs_count', 'current_streak', 'is_suspended', 'has_completed_onboarding',
             'warnings_count', 'is_2fa_enabled', 'date_joined', 'last_active', 'availability',
             'hifz_progress'
         ]
-        read_only_fields = ['id', 'email', 'date_joined', 'last_active']
+        read_only_fields = ['id', 'email', 'date_joined', 'last_active', 'has_completed_onboarding']
 
     def get_name(self, obj):
         return obj.full_name or obj.username or obj.email
