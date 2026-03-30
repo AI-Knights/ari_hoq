@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { EVENTS, STATUS } from 'react-joyride';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { api } from '../../lib/api';
@@ -151,11 +152,10 @@ function TourTooltip({
 
 // ─── Main Tour Component ───────────────────────────────────────────────────
 export function OnboardingTour() {
-    const { user } = useAuth();
+    const { user, updateUser } = useAuth();
     const { theme } = useTheme();
     const [run, setRun] = useState(false);
     const [JoyrideComponent, setJoyrideComponent] = useState<any>(null);
-    // Ref ensures we only ever start the timer once even if user object re-renders
     const hasStarted = useRef(false);
 
     useEffect(() => {
@@ -167,7 +167,7 @@ export function OnboardingTour() {
 
     useEffect(() => {
         if (!user) return;
-        if (hasStarted.current) return; // Never re-trigger after first check
+        if (hasStarted.current) return;
         if (typeof window === 'undefined') return;
 
         const hasCompletedLocal = localStorage.getItem(`tour_completed_${user.id}`);
@@ -176,40 +176,40 @@ export function OnboardingTour() {
 
         if (!hasCompleted && isDesktop) {
             hasStarted.current = true;
-            const timer = setTimeout(() => setRun(true), 1500);
+            // Delay ensures DOM nodes are mounted
+            const timer = setTimeout(() => setRun(true), 2000);
             return () => clearTimeout(timer);
         } else {
-            // Mark started so we don't re-check on re-renders
             hasStarted.current = true;
         }
     }, [user]);
 
-    const saveTourCompletion = async () => {
-        if (!user) return;
-        localStorage.setItem(`tour_completed_${user.id}`, 'true');
-        try {
-            await api.auth.completeOnboarding();
-        } catch (_) {}
-    };
-
-    const handleJoyrideCallback = async (data: any) => {
-        const { status, action } = data;
-
-        // Catch ALL ways the tour can end:
-        // - status 'finished' = last Next clicked
-        // - status 'skipped'  = Skip button clicked
-        // - action 'close'    = × button clicked (fires before status updates)
-        const tourEnded =
-            status === 'finished' ||
-            status === 'skipped' ||
-            action === 'close' ||
-            action === 'skip';
+    const handleJoyrideCallback = useCallback(async (data: any) => {
+        const { status, type, action } = data;
+        
+        // React Joyride fires multiple events. The definitive end states are:
+        const finishedStatuses = [STATUS.FINISHED, STATUS.SKIPPED];
+        const tourEnded = finishedStatuses.includes(status) || type === EVENTS.TOUR_END || action === 'close';
 
         if (tourEnded) {
-            setRun(false);
-            await saveTourCompletion();
+            setRun(false); // Stop the tour visually immediately
+            
+            if (user && user.id) {
+                // Set localStorage instantly
+                localStorage.setItem(`tour_completed_${user.id}`, 'true');
+                
+                // Optimistically update React context
+                updateUser({ has_completed_onboarding: true });
+
+                try {
+                    // Fire background API call
+                    await api.auth.completeOnboarding();
+                } catch (error) {
+                    console.error('Failed to sync tour completion to server');
+                }
+            }
         }
-    };
+    }, [user, updateUser]);
 
     const steps: any[] = [
         {
