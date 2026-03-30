@@ -203,3 +203,99 @@ html.light .islamic-patterns svg {
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: var(--theme-text);
 }
+
+/* -------------------------------------------------- */
+/* Onboarding Tour (react-joyride) Theme Overrides    */
+/* -------------------------------------------------- */
+
+.__floater__body {
+  font-family: var(--font-montserrat), 'Inter', sans-serif !important;
+}
+
+/* Main tooltip card */
+.react-joyride__tooltip {
+  background-color: var(--theme-card) !important;
+  color: var(--theme-text) !important;
+  border: 1px solid rgba(212, 175, 55, 0.25) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(212, 175, 55, 0.1) !important;
+  padding: 24px !important;
+  max-width: 340px !important;
+}
+
+/* Title inside tooltip */
+.react-joyride__tooltip h2,
+.react-joyride__tooltip h3 {
+  color: var(--theme-text) !important;
+  font-family: var(--font-poppins), 'Playfair Display', serif !important;
+}
+
+/* Body text */
+.react-joyride__tooltip p {
+  color: var(--theme-text-secondary) !important;
+  line-height: 1.6 !important;
+}
+
+/* The arrow pointing at the target */
+.__floater__arrow polygon,
+.__floater__arrow span {
+  fill: var(--theme-card) !important;
+}
+
+/* Progress dots / text */
+.react-joyride__tooltip [data-test-id="overlay"] {
+  background: rgba(0, 0, 0, 0.65) !important;
+}
+
+/* Step count badge */
+.react-joyride__progress {
+  color: var(--theme-text-secondary) !important;
+  font-size: 12px !important;
+}
+
+/* Footer button row */
+.react-joyride__tooltip footer {
+  margin-top: 16px !important;
+}
+
+/* Next / Last button */
+.react-joyride__tooltip [data-test-id="button-primary"] {
+  background: linear-gradient(135deg, #D4AF37, #b8932a) !important;
+  color: #0A1A3A !important;
+  border-radius: 9999px !important;
+  font-weight: 700 !important;
+  border: none !important;
+  padding: 8px 20px !important;
+  transition: opacity 0.2s ease, transform 0.15s ease !important;
+}
+
+.react-joyride__tooltip [data-test-id="button-primary"]:hover {
+  opacity: 0.9 !important;
+  transform: translateY(-1px) !important;
+}
+
+/* Back button */
+.react-joyride__tooltip [data-test-id="button-back"] {
+  color: var(--theme-text-secondary) !important;
+  background: transparent !important;
+  border: none !important;
+  font-weight: 500 !important;
+}
+
+/* Skip button */
+.react-joyride__tooltip [data-test-id="button-skip"] {
+  color: #f87171 !important;
+  background: transparent !important;
+  border: none !important;
+  font-weight: 500 !important;
+  font-size: 12px !important;
+}
+
+/* Beacon pulse ring */
+.react-joyride__beacon span:first-child {
+  background-color: rgba(212, 175, 55, 0.4) !important;
+}
+
+.react-joyride__beacon span:last-child {
+  background-color: #D4AF37 !important;
+}

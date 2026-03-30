@@ -126,28 +126,9 @@ export function OnboardingTour() {
             styles={{
                 options: {
                     zIndex: 10000,
-                    primaryColor: '#D4AF37',
-                    backgroundColor: isDark ? '#1a1a4a' : '#ffffff',
-                    textColor: isDark ? '#ffffff' : '#0A1A3A',
-                    arrowColor: isDark ? '#1a1a4a' : '#ffffff',
-                    overlayColor: 'rgba(0, 0, 0, 0.6)',
-                },
-                buttonNext: {
-                    backgroundColor: '#D4AF37',
-                    color: '#0A1A3A',
-                    fontWeight: 'bold',
-                    padding: '8px 16px',
-                    borderRadius: '9999px',
-                },
-                buttonBack: {
-                    color: isDark ? 'rgba(255,255,255,0.7)' : 'rgba(10,26,58,0.7)',
-                    marginRight: '8px',
-                },
-                buttonSkip: {
-                    color: isDark ? '#ff6b6b' : '#d32f2f',
-                },
-                tooltipContainer: {
-                    textAlign: 'left',
+                    overlayColor: 'rgba(0, 0, 0, 0.65)',
+                    // Colors are overridden by .react-joyride__tooltip CSS in globals.css
+                    // to properly use CSS variables for dark/light theme switching
                 },
             }}
         />
