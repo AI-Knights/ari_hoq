@@ -169,19 +169,32 @@ export function OnboardingTour() {
         if (hasStarted.current) return;
         if (typeof window === 'undefined') return;
 
-        const hasCompletedLocal = localStorage.getItem(`tour_completed_${user.id}`);
-        // Fallback global key in case user.id somehow differs between renders
-        const hasCompletedGlobal = localStorage.getItem(`quranpartners_tour_completed_${user.email || 'global'}`);
-        const hasCompleted = user.has_completed_onboarding || hasCompletedLocal === 'true' || hasCompletedGlobal === 'true';
         const isDesktop = window.innerWidth >= 1024;
+        if (!isDesktop) return;
 
-        if (!hasCompleted && isDesktop) {
+        // 1. First check in the browser memory
+        const isLocallyComplete = localStorage.getItem(`onboarding_complete_${user.id}`) === 'true';
+        
+        if (isLocallyComplete) {
+            // If true locally, stop immediately. No need to show or even check server.
             hasStarted.current = true;
-            // Delay ensures DOM nodes are mounted
+            return;
+        }
+
+        // 2. If not found locally, rely on the server's status
+        if (user.has_completed_onboarding === true) {
+            // Found it true on server, save it locally for next time
+            localStorage.setItem(`onboarding_complete_${user.id}`, 'true');
+            hasStarted.current = true;
+            return;
+        }
+
+        // 3. If the server explicitly says it is false, we show the tour.
+        // Waiting for strict false prevents triggering during the split-second Next.js auth loading
+        if (user.has_completed_onboarding === false) {
+            hasStarted.current = true;
             const timer = setTimeout(() => setRun(true), 2000);
             return () => clearTimeout(timer);
-        } else {
-            hasStarted.current = true;
         }
     }, [user]);
 
@@ -200,19 +213,17 @@ export function OnboardingTour() {
             action === 'skip';
 
         if (tourEnded) {
-            setRun(false); // Stop the tour visually immediately
+            setRun(false); // Stop visually immediately
             
-            if (user) {
-                // Set localStorage instantly using both keys to guarantee persistence
-                if (user.id) localStorage.setItem(`tour_completed_${user.id}`, 'true');
-                if (user.email) localStorage.setItem(`quranpartners_tour_completed_${user.email}`, 'true');
-                localStorage.setItem(`quranpartners_tour_completed_global`, 'true');
+            if (user && user.id) {
+                // 1. Mark as complete in the user's browser profile
+                localStorage.setItem(`onboarding_complete_${user.id}`, 'true');
                 
-                // Optimistically update React context
+                // 2. Optimistically update React state 
                 updateUser({ has_completed_onboarding: true });
 
+                // 3. Mark as complete on the server profile
                 try {
-                    // Fire background API call
                     await api.auth.completeOnboarding();
                 } catch (error) {
                     console.error('Failed to sync tour completion to server');
