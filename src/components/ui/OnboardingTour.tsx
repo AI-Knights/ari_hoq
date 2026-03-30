@@ -1,15 +1,15 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { api } from '../../lib/api';
 
-// ─── Custom Tooltip Component ──────────────────────────────────────────────
-// Using tooltipComponent prop gives us 100% control — Joyride's inline styles
-// can't be overridden by CSS, so we render our own card entirely.
+// ─── Null Beacon — hides the pulsing indicator entirely ───────────────────
+const NullBeacon = () => null;
+
+// ─── Custom Compact Tooltip ────────────────────────────────────────────────
 function TourTooltip({
-    continuous,
     index,
     step,
     size,
@@ -24,136 +24,123 @@ function TourTooltip({
         document.documentElement.classList.contains('dark');
 
     const card: React.CSSProperties = {
-        backgroundColor: isDark ? '#11224a' : '#ffffff',
-        color: isDark ? '#ffffff' : '#1a1a2e',
-        border: `1px solid rgba(212, 175, 55, 0.3)`,
-        borderRadius: '16px',
+        backgroundColor: isDark ? '#0f1f45' : '#ffffff',
+        color: isDark ? '#f1f5f9' : '#1e293b',
+        border: '1px solid rgba(212, 175, 55, 0.25)',
+        borderRadius: '12px',
         boxShadow: isDark
-            ? '0 24px 64px rgba(0,0,0,0.6), 0 0 0 1px rgba(212,175,55,0.1)'
-            : '0 8px 32px rgba(0,0,0,0.12), 0 0 0 1px rgba(212,175,55,0.15)',
-        padding: '24px',
-        maxWidth: '340px',
-        minWidth: '280px',
+            ? '0 16px 48px rgba(0,0,0,0.55), 0 0 0 1px rgba(212,175,55,0.08)'
+            : '0 8px 24px rgba(0,0,0,0.1), 0 0 0 1px rgba(212,175,55,0.12)',
+        padding: '16px 18px 14px',
+        maxWidth: '280px',
+        minWidth: '220px',
         fontFamily: "'Inter', sans-serif",
         position: 'relative',
     };
 
-    const header: React.CSSProperties = {
+    const topRow: React.CSSProperties = {
         display: 'flex',
         justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: '12px',
+        alignItems: 'center',
+        marginBottom: '8px',
     };
 
-    const stepBadge: React.CSSProperties = {
+    const progress: React.CSSProperties = {
         fontSize: '11px',
         fontWeight: 600,
         color: '#D4AF37',
-        backgroundColor: 'rgba(212, 175, 55, 0.12)',
-        border: '1px solid rgba(212, 175, 55, 0.25)',
-        borderRadius: '999px',
-        padding: '2px 10px',
-        letterSpacing: '0.05em',
-        textTransform: 'uppercase' as const,
+        opacity: 0.85,
+        letterSpacing: '0.04em',
     };
 
     const closeBtn: React.CSSProperties = {
         background: 'none',
         border: 'none',
         cursor: 'pointer',
-        color: isDark ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.3)',
-        fontSize: '18px',
+        color: isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.25)',
+        fontSize: '16px',
         lineHeight: 1,
-        padding: '0 0 0 8px',
+        padding: '0',
+        display: 'flex',
+        alignItems: 'center',
     };
 
     const content: React.CSSProperties = {
-        fontSize: '14px',
-        lineHeight: '1.65',
-        color: isDark ? 'rgba(255,255,255,0.85)' : '#4b5563',
+        fontSize: '13px',
+        lineHeight: '1.6',
+        color: isDark ? 'rgba(241,245,249,0.82)' : '#475569',
         textAlign: 'left',
-        margin: '0 0 20px',
+        margin: '0 0 14px',
     };
 
     const footer: React.CSSProperties = {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        gap: '8px',
+        gap: '6px',
     };
 
     const skipBtnStyle: React.CSSProperties = {
         background: 'none',
         border: 'none',
         cursor: 'pointer',
-        fontSize: '12px',
+        fontSize: '11px',
         fontWeight: 500,
-        color: isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)',
-        padding: '6px 0',
+        color: isDark ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.28)',
+        padding: '4px 0',
     };
 
     const backBtnStyle: React.CSSProperties = {
         background: 'none',
-        border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)'}`,
-        borderRadius: '8px',
+        border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
+        borderRadius: '7px',
         cursor: 'pointer',
-        fontSize: '13px',
+        fontSize: '12px',
         fontWeight: 500,
-        color: isDark ? 'rgba(255,255,255,0.7)' : '#374151',
-        padding: '7px 16px',
-        transition: 'opacity 0.15s',
+        color: isDark ? 'rgba(255,255,255,0.6)' : '#475569',
+        padding: '5px 12px',
     };
 
     const nextBtnStyle: React.CSSProperties = {
-        background: 'linear-gradient(135deg, #D4AF37 0%, #c49b27 100%)',
+        background: 'linear-gradient(135deg, #D4AF37 0%, #bf9b24 100%)',
         border: 'none',
-        borderRadius: '8px',
+        borderRadius: '7px',
         cursor: 'pointer',
-        fontSize: '13px',
+        fontSize: '12px',
         fontWeight: 700,
         color: '#0A1A3A',
-        padding: '8px 20px',
-        boxShadow: '0 2px 8px rgba(212, 175, 55, 0.35)',
-        transition: 'opacity 0.15s, transform 0.15s',
+        padding: '5px 14px',
+        boxShadow: '0 2px 6px rgba(212,175,55,0.3)',
     };
 
-    const rightButtons: React.CSSProperties = {
+    const rightBtns: React.CSSProperties = {
         display: 'flex',
         alignItems: 'center',
-        gap: '8px',
-    };
-
-    // Separator line between header badge and content
-    const divider: React.CSSProperties = {
-        borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}`,
-        margin: '12px 0',
+        gap: '6px',
     };
 
     return (
         <div {...tooltipProps} style={card}>
-            {/* Header row: step badge + close */}
-            <div style={header}>
-                <span style={stepBadge}>Step {index + 1} of {size}</span>
-                <button {...closeProps} style={closeBtn} aria-label="Close tour">×</button>
+            {/* Top row: progress + close */}
+            <div style={topRow}>
+                <span style={progress}>{index + 1} / {size}</span>
+                <button {...closeProps} style={closeBtn} title="" aria-label="Close">×</button>
             </div>
 
-            <div style={divider} />
-
-            {/* Main content */}
+            {/* Content */}
             <div style={content}>{step.content}</div>
 
-            {/* Footer: skip left, back+next right */}
+            {/* Footer */}
             <div style={footer}>
-                {!isLastStep && (
-                    <button {...skipProps} style={skipBtnStyle}>Skip tour</button>
-                )}
-                {isLastStep && <span />}
-
-                <div style={rightButtons}>
+                {!isLastStep
+                    ? <button {...skipProps} style={skipBtnStyle} title="">Skip</button>
+                    : <span />
+                }
+                <div style={rightBtns}>
                     {index > 0 && (
-                        <button {...backProps} style={backBtnStyle}>Back</button>
+                        <button {...backProps} style={backBtnStyle} title="">Back</button>
                     )}
-                    <button {...primaryProps} style={nextBtnStyle}>
+                    <button {...primaryProps} style={nextBtnStyle} title="">
                         {isLastStep ? 'Done ✓' : 'Next →'}
                     </button>
                 </div>
@@ -168,8 +155,9 @@ export function OnboardingTour() {
     const { theme } = useTheme();
     const [run, setRun] = useState(false);
     const [JoyrideComponent, setJoyrideComponent] = useState<any>(null);
+    // Ref ensures we only ever start the timer once even if user object re-renders
+    const hasStarted = useRef(false);
 
-    // Dynamically load Joyride only on the client side
     useEffect(() => {
         import('react-joyride').then((mod) => {
             const m = mod as any;
@@ -179,6 +167,7 @@ export function OnboardingTour() {
 
     useEffect(() => {
         if (!user) return;
+        if (hasStarted.current) return; // Never re-trigger after first check
         if (typeof window === 'undefined') return;
 
         const hasCompletedLocal = localStorage.getItem(`tour_completed_${user.id}`);
@@ -186,21 +175,39 @@ export function OnboardingTour() {
         const isDesktop = window.innerWidth >= 1024;
 
         if (!hasCompleted && isDesktop) {
+            hasStarted.current = true;
             const timer = setTimeout(() => setRun(true), 1500);
             return () => clearTimeout(timer);
+        } else {
+            // Mark started so we don't re-check on re-renders
+            hasStarted.current = true;
         }
     }, [user]);
 
+    const saveTourCompletion = async () => {
+        if (!user) return;
+        localStorage.setItem(`tour_completed_${user.id}`, 'true');
+        try {
+            await api.auth.completeOnboarding();
+        } catch (_) {}
+    };
+
     const handleJoyrideCallback = async (data: any) => {
-        const { status } = data;
-        if (['finished', 'skipped'].includes(status)) {
+        const { status, action } = data;
+
+        // Catch ALL ways the tour can end:
+        // - status 'finished' = last Next clicked
+        // - status 'skipped'  = Skip button clicked
+        // - action 'close'    = × button clicked (fires before status updates)
+        const tourEnded =
+            status === 'finished' ||
+            status === 'skipped' ||
+            action === 'close' ||
+            action === 'skip';
+
+        if (tourEnded) {
             setRun(false);
-            if (user) {
-                localStorage.setItem(`tour_completed_${user.id}`, 'true');
-                try {
-                    await api.auth.completeOnboarding();
-                } catch (_) {}
-            }
+            await saveTourCompletion();
         }
     };
 
@@ -210,11 +217,11 @@ export function OnboardingTour() {
             placement: 'center',
             content: (
                 <div>
-                    <p style={{ fontSize: '20px', fontWeight: 700, marginBottom: '8px' }}>
+                    <p style={{ fontSize: '16px', fontWeight: 700, marginBottom: '6px' }}>
                         Welcome to QuranPartners! 🎉
                     </p>
-                    <p style={{ fontSize: '14px', lineHeight: '1.65', color: 'inherit', opacity: 0.8 }}>
-                        Let's take a quick tour so you know your way around the platform.
+                    <p style={{ fontSize: '13px', lineHeight: '1.6', opacity: 0.8 }}>
+                        Quick tour — learn the platform in under a minute.
                     </p>
                 </div>
             ),
@@ -222,37 +229,37 @@ export function OnboardingTour() {
         },
         {
             target: '.tour-step-home',
-            content: 'Your Dashboard — see your current streak, upcoming messages, and availability status at a glance.',
+            content: 'Dashboard — your streak, messages, and availability at a glance.',
             placement: 'right',
             disableBeacon: true,
         },
         {
             target: '.tour-step-hifz',
-            content: "Track every Surah you've memorized. Accurate progress helps us match you with the ideal study partner.",
+            content: "Track every Surah you've memorized to get the best partner matches.",
             placement: 'right',
             disableBeacon: true,
         },
         {
             target: '.tour-step-partner',
-            content: 'Discover brothers and sisters around the world who share your memorization goals and schedule.',
+            content: 'Find brothers/sisters worldwide who share your memorization goals.',
             placement: 'right',
             disableBeacon: true,
         },
         {
             target: '.tour-step-friends',
-            content: 'Manage your study friendships and respond to incoming connection requests here.',
+            content: 'Manage friendships and handle incoming connection requests.',
             placement: 'right',
             disableBeacon: true,
         },
         {
             target: '.tour-step-chat',
-            content: 'Chat in real-time and use the built-in video calling for live recitation sessions.',
+            content: 'Real-time chat and built-in video calling for live sessions.',
             placement: 'right',
             disableBeacon: true,
         },
         {
             target: '.tour-step-profile',
-            content: 'Set up your profile first — timezone, language, and availability make you visible to partners.',
+            content: 'Set your timezone and language first — it makes you discoverable.',
             placement: 'right',
             disableBeacon: true,
         },
@@ -268,16 +275,17 @@ export function OnboardingTour() {
             run={run}
             continuous={true}
             showSkipButton={false}
-            scrollToFirstStep={true}
+            scrollToFirstStep={false}
             showProgress={false}
-            disableScrolling={false}
+            disableScrolling={true}
             tooltipComponent={TourTooltip}
+            beaconComponent={NullBeacon}
             callback={handleJoyrideCallback}
             styles={{
                 options: {
                     zIndex: 10000,
-                    overlayColor: 'rgba(0, 0, 0, 0.7)',
-                    arrowColor: theme === 'dark' ? '#11224a' : '#ffffff',
+                    overlayColor: 'rgba(0, 0, 0, 0.6)',
+                    arrowColor: theme === 'dark' ? '#0f1f45' : '#ffffff',
                 },
             }}
         />
