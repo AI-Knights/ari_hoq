@@ -164,71 +164,77 @@ export function OnboardingTour() {
         }).catch(() => {});
     }, []);
 
+    // ─── Sync Logic: Server -> LocalStorage ───
     useEffect(() => {
-        if (!user) return;
-        if (hasStarted.current) return;
-        if (typeof window === 'undefined') return;
+        if (!user || typeof window === 'undefined') return;
+
+        if (user.id && user.has_completed_onboarding === true) {
+            const key = 'onboarding_complete';
+            if (localStorage.getItem(key) !== 'true') {
+                localStorage.setItem(key, 'true');
+            }
+        }
+    }, [user]);
+
+    // ─── Trigger Logic: Determine if we show the tour ───
+    useEffect(() => {
+        if (!user || !user.id || typeof window === 'undefined') return;
 
         const isDesktop = window.innerWidth >= 1024;
         if (!isDesktop) return;
 
-        // 1. First check in the browser memory
-        const isLocallyComplete = localStorage.getItem(`onboarding_complete_${user.id}`) === 'true';
-        
-        if (isLocallyComplete) {
-            // If true locally, stop immediately. No need to show or even check server.
-            hasStarted.current = true;
+        const localStatus = localStorage.getItem('onboarding_complete');
+
+        // 1. Check local storage first (If true, don't initiate)
+        if (localStatus === 'true') {
             return;
         }
 
-        // 2. If not found locally, rely on the server's status
+        // 2. If it finds false in local storage, just show the onboarding
+        if (localStatus === 'false') {
+            if (!hasStarted.current) {
+                const timer = setTimeout(() => {
+                    setRun(true);
+                    hasStarted.current = true;
+                }, 2500);
+                return () => clearTimeout(timer);
+            }
+            return;
+        }
+
+        // 3. If it doesn't find anything in local storage, rely on API data via user context
         if (user.has_completed_onboarding === true) {
-            // Found it true on server, save it locally for next time
-            localStorage.setItem(`onboarding_complete_${user.id}`, 'true');
-            hasStarted.current = true;
-            return;
-        }
-
-        // 3. If the server explicitly says it is false, we show the tour.
-        // Waiting for strict false prevents triggering during the split-second Next.js auth loading
-        if (user.has_completed_onboarding === false) {
-            hasStarted.current = true;
-            const timer = setTimeout(() => setRun(true), 2000);
-            return () => clearTimeout(timer);
+            localStorage.setItem('onboarding_complete', 'true');
+        } else if (user.has_completed_onboarding === false) {
+            localStorage.setItem('onboarding_complete', 'false');
+            if (!hasStarted.current) {
+                const timer = setTimeout(() => {
+                    setRun(true);
+                    hasStarted.current = true;
+                }, 2500);
+                return () => clearTimeout(timer);
+            }
         }
     }, [user]);
 
     const handleJoyrideCallback = useCallback(async (data: any) => {
         const { status, type, action } = data;
         
-        // Let's be aggressive: any of these events mean the user interacted
-        // to dismiss or finish the tour
-        const finishedStatuses = ['finished', 'skipped'];
-        const finishedEvents = ['tour:end', 'step:after']; // step:after with close action
+        // In react-joyride v3: tour:end fires when tour finishes or is skipped/closed
+        // close() only advances index — doesn't set status to finished/skipped, so check action too
+        const isDone = type === 'tour:end' || status === 'finished' || status === 'skipped' || action === 'close';
         
-        const tourEnded = 
-            finishedStatuses.includes(status) || 
-            finishedEvents.includes(type) || 
-            action === 'close' || 
-            action === 'skip';
-
-        if (tourEnded) {
-            setRun(false); // Stop visually immediately
-            
+        if (isDone) {
             if (user && user.id) {
-                // 1. Mark as complete in the user's browser profile
-                localStorage.setItem(`onboarding_complete_${user.id}`, 'true');
-                
-                // 2. Optimistically update React state 
-                updateUser({ has_completed_onboarding: true });
-
-                // 3. Mark as complete on the server profile
                 try {
                     await api.auth.completeOnboarding();
+                    localStorage.setItem('onboarding_complete', 'true');
+                    updateUser({ has_completed_onboarding: true });
                 } catch (error) {
-                    console.error('Failed to sync tour completion to server');
+                    console.error('[Onboarding] POST failed:', error);
                 }
             }
+            setRun(false);
         }
     }, [user, updateUser]);
 
@@ -301,7 +307,7 @@ export function OnboardingTour() {
             disableScrolling={true}
             tooltipComponent={TourTooltip}
             beaconComponent={NullBeacon}
-            callback={handleJoyrideCallback}
+            onEvent={handleJoyrideCallback}
             styles={{
                 options: {
                     zIndex: 10000,

@@ -107,6 +107,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (data?.user) {
                 try {
                     const profile = await api.auth.me();
+                    
+                    // Explicitly put the backend status into localStorage
+                    if (typeof window !== 'undefined' && profile.id) {
+                        const key = 'onboarding_complete';
+                        if (profile.has_completed_onboarding === true) {
+                            localStorage.setItem(key, 'true');
+                        } else if (profile.has_completed_onboarding === false) {
+                            localStorage.setItem(key, 'false');
+                        }
+                    }
+                    
                     setUser(mapUser(profile));
                 } catch {
                     setUser(mapUser(data.user));
