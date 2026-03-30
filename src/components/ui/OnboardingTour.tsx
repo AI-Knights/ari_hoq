@@ -14,7 +14,8 @@ export function OnboardingTour() {
     // Dynamically load Joyride only on the client side to avoid SSR "window is not defined"
     useEffect(() => {
         import('react-joyride').then((mod) => {
-            setJoyrideComponent(() => mod.default || mod);
+            const m = mod as any;
+            setJoyrideComponent(() => m.default || m.Joyride || m);
         }).catch(() => {});
     }, []);
 
