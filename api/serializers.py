@@ -61,7 +61,7 @@ class UserSerializer(serializers.ModelSerializer):
             'warnings_count', 'is_2fa_enabled', 'date_joined', 'last_active', 'availability',
             'hifz_progress'
         ]
-        read_only_fields = ['id', 'email', 'date_joined', 'last_active', 'has_completed_onboarding']
+        read_only_fields = ['id', 'email', 'date_joined', 'last_active']
 
     def get_name(self, obj):
         return obj.full_name or obj.username or obj.email

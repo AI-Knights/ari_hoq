@@ -254,9 +254,15 @@ class CompleteOnboardingView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"CompleteOnboardingView hit for user: {request.user.email}")
+        
         user = request.user
         user.has_completed_onboarding = True
-        user.save(update_fields=['has_completed_onboarding'])
+        user.save()
+        
+        logger.info(f"User {user.email} saved successfully with has_completed_onboarding=True")
         return Response({'message': 'Onboarding completed successfully'})
 
 
