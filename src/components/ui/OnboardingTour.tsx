@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { EVENTS, STATUS } from 'react-joyride';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { api } from '../../lib/api';
@@ -171,7 +170,9 @@ export function OnboardingTour() {
         if (typeof window === 'undefined') return;
 
         const hasCompletedLocal = localStorage.getItem(`tour_completed_${user.id}`);
-        const hasCompleted = user.has_completed_onboarding || hasCompletedLocal === 'true';
+        // Fallback global key in case user.id somehow differs between renders
+        const hasCompletedGlobal = localStorage.getItem(`quranpartners_tour_completed_${user.email || 'global'}`);
+        const hasCompleted = user.has_completed_onboarding || hasCompletedLocal === 'true' || hasCompletedGlobal === 'true';
         const isDesktop = window.innerWidth >= 1024;
 
         if (!hasCompleted && isDesktop) {
@@ -187,16 +188,25 @@ export function OnboardingTour() {
     const handleJoyrideCallback = useCallback(async (data: any) => {
         const { status, type, action } = data;
         
-        // React Joyride fires multiple events. The definitive end states are:
-        const finishedStatuses = [STATUS.FINISHED, STATUS.SKIPPED];
-        const tourEnded = finishedStatuses.includes(status) || type === EVENTS.TOUR_END || action === 'close';
+        // Let's be aggressive: any of these events mean the user interacted
+        // to dismiss or finish the tour
+        const finishedStatuses = ['finished', 'skipped'];
+        const finishedEvents = ['tour:end', 'step:after']; // step:after with close action
+        
+        const tourEnded = 
+            finishedStatuses.includes(status) || 
+            finishedEvents.includes(type) || 
+            action === 'close' || 
+            action === 'skip';
 
         if (tourEnded) {
             setRun(false); // Stop the tour visually immediately
             
-            if (user && user.id) {
-                // Set localStorage instantly
-                localStorage.setItem(`tour_completed_${user.id}`, 'true');
+            if (user) {
+                // Set localStorage instantly using both keys to guarantee persistence
+                if (user.id) localStorage.setItem(`tour_completed_${user.id}`, 'true');
+                if (user.email) localStorage.setItem(`quranpartners_tour_completed_${user.email}`, 'true');
+                localStorage.setItem(`quranpartners_tour_completed_global`, 'true');
                 
                 // Optimistically update React context
                 updateUser({ has_completed_onboarding: true });
