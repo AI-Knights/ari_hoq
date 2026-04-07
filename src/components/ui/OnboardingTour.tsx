@@ -121,6 +121,22 @@ function TourTooltip({
 
     return (
         <div {...tooltipProps} style={card}>
+            {/* Mobile-only section title header */}
+            {step.mobileTitle && (
+                <div style={{
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    textTransform: 'uppercase' as const,
+                    letterSpacing: '0.08em',
+                    color: '#D4AF37',
+                    marginBottom: '6px',
+                    paddingBottom: '6px',
+                    borderBottom: '1px solid rgba(212,175,55,0.15)',
+                }}>
+                    📍 {step.mobileTitle}
+                </div>
+            )}
+
             {/* Top row: progress + close */}
             <div style={topRow}>
                 <span style={progress}>{index + 1} / {size}</span>
@@ -180,9 +196,6 @@ export function OnboardingTour() {
     useEffect(() => {
         if (!user || !user.id || typeof window === 'undefined') return;
 
-        const isDesktop = window.innerWidth >= 1024;
-        if (!isDesktop) return;
-
         const localStatus = localStorage.getItem('onboarding_complete');
 
         // 1. Check local storage first (If true, don't initiate)
@@ -193,11 +206,8 @@ export function OnboardingTour() {
         // 2. If it finds false in local storage, just show the onboarding
         if (localStatus === 'false') {
             if (!hasStarted.current) {
-                const timer = setTimeout(() => {
-                    setRun(true);
-                    hasStarted.current = true;
-                }, 2500);
-                return () => clearTimeout(timer);
+                setRun(true);
+                hasStarted.current = true;
             }
             return;
         }
@@ -208,11 +218,8 @@ export function OnboardingTour() {
         } else if (user.has_completed_onboarding === false) {
             localStorage.setItem('onboarding_complete', 'false');
             if (!hasStarted.current) {
-                const timer = setTimeout(() => {
-                    setRun(true);
-                    hasStarted.current = true;
-                }, 2500);
-                return () => clearTimeout(timer);
+                setRun(true);
+                hasStarted.current = true;
             }
         }
     }, [user]);
@@ -238,6 +245,10 @@ export function OnboardingTour() {
         }
     }, [user, updateUser]);
 
+    const isDesktop = typeof window !== 'undefined' ? window.innerWidth >= 1024 : true;
+    const getTarget = (selector: string) => isDesktop ? selector : 'body';
+    const getPlacement = () => isDesktop ? 'right' : 'center';
+
     const steps: any[] = [
         {
             target: 'body',
@@ -255,40 +266,46 @@ export function OnboardingTour() {
             disableBeacon: true,
         },
         {
-            target: '.tour-step-home',
+            target: getTarget('.tour-step-home'),
             content: 'Dashboard — your streak, messages, and availability at a glance.',
-            placement: 'right',
+            placement: getPlacement(),
             disableBeacon: true,
+            mobileTitle: isDesktop ? undefined : 'Dashboard',
         },
         {
-            target: '.tour-step-hifz',
+            target: getTarget('.tour-step-hifz'),
             content: "Track every Surah you've memorized to get the best partner matches.",
-            placement: 'right',
+            placement: getPlacement(),
             disableBeacon: true,
+            mobileTitle: isDesktop ? undefined : 'Hifz Journey',
         },
         {
-            target: '.tour-step-partner',
+            target: getTarget('.tour-step-partner'),
             content: 'Find brothers/sisters worldwide who share your memorization goals.',
-            placement: 'right',
+            placement: getPlacement(),
             disableBeacon: true,
+            mobileTitle: isDesktop ? undefined : 'Find a Partner',
         },
         {
-            target: '.tour-step-friends',
+            target: getTarget('.tour-step-friends'),
             content: 'Manage friendships and handle incoming connection requests.',
-            placement: 'right',
+            placement: getPlacement(),
             disableBeacon: true,
+            mobileTitle: isDesktop ? undefined : 'Friends',
         },
         {
-            target: '.tour-step-chat',
+            target: getTarget('.tour-step-chat'),
             content: 'Real-time chat and built-in video calling for live sessions.',
-            placement: 'right',
+            placement: getPlacement(),
             disableBeacon: true,
+            mobileTitle: isDesktop ? undefined : 'Chat',
         },
         {
-            target: '.tour-step-profile',
-            content: 'Set your timezone and language first — it makes you discoverable.',
-            placement: 'right',
+            target: getTarget('.tour-step-profile'),
+            content: 'You must complete your profile information to start finding a partner. Set your timezone and language first — it makes you discoverable.',
+            placement: getPlacement(),
             disableBeacon: true,
+            mobileTitle: isDesktop ? undefined : 'Profile',
         },
     ];
 
@@ -308,6 +325,9 @@ export function OnboardingTour() {
             tooltipComponent={TourTooltip}
             beaconComponent={NullBeacon}
             onEvent={handleJoyrideCallback}
+            options={{
+                overlayClickAction: false,
+            }}
             styles={{
                 options: {
                     zIndex: 10000,
