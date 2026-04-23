@@ -108,7 +108,7 @@ export function ContactPage() {
                     </div>
                     <div>
                       <h3 className="font-bold text-theme-text mb-1">Email</h3>
-                      <p className="text-theme-text-secondary text-sm">support@quranmemorizationpartner.com</p>
+                      <p className="text-theme-text-secondary text-sm break-all">support@quranmemorizationpartner.com</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-4">
