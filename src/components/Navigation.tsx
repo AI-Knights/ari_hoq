@@ -61,18 +61,18 @@ export function Navigation() {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
 
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+          <a href="/" className="flex items-center gap-2 sm:gap-3 flex-shrink-0 relative z-10">
             <div className="relative h-10 w-28 xs:h-12 xs:w-32 sm:h-14 sm:w-36 md:h-16 md:w-44">
               <Image
                 src={theme === 'light' ? '/logo-dark.png' : '/logo.png'}
                 alt="QuranPartners Logo"
                 fill
-                className="object-contain"
+                className="object-contain pointer-events-none"
                 priority
                 sizes="(max-width: 375px) 112px, (max-width: 640px) 128px, (max-width: 768px) 144px, 176px"
               />
             </div>
-          </Link>
+          </a>
 
           {/* Desktop Nav */}
           <div className="hidden md:flex items-center space-x-4 lg:space-x-8">

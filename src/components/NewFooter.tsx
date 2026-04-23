@@ -104,13 +104,12 @@ export function NewFooter() {
                             </ul>
                         </div>
 
-                        {/* Legal */}
                         <div className="text-center sm:text-left">
                             <h4 className="text-theme-text font-bold mb-6">Legal</h4>
                             <ul className="space-y-4 text-sm text-theme-text-secondary">
-                                <li><Link href="/about" className="hover:text-[#D4AF37] transition-colors">Privacy Policy</Link></li>
-                                <li><Link href="/about" className="hover:text-[#D4AF37] transition-colors">Terms of Service</Link></li>
-                                <li><Link href="/contact" className="hover:text-[#D4AF37] transition-colors">Community Guidelines</Link></li>
+                                <li><Link href="/privacy" className="hover:text-[#D4AF37] transition-colors">Privacy Policy</Link></li>
+                                <li><Link href="/terms" className="hover:text-[#D4AF37] transition-colors">Terms of Service</Link></li>
+                                <li><Link href="/guidelines" className="hover:text-[#D4AF37] transition-colors">Community Guidelines</Link></li>
                             </ul>
                         </div>
                     </div>

@@ -3,6 +3,7 @@
 import React, { useState, useRef } from 'react';
 import { Card } from '../../../src/components/ui/Card';
 import { Input } from '../../../src/components/ui/Input';
+import { PasswordInput } from '../../../src/components/ui/PasswordInput';
 import { Button } from '../../../src/components/ui/Button';
 import { Avatar } from '../../../src/components/ui/Avatar';
 import { Camera, Save, CheckCircle, Shield, Settings as SettingsIcon } from 'lucide-react';
@@ -301,15 +302,13 @@ export default function AdminSettingsPage() {
                         <h3 className="text-xl font-serif font-bold text-theme-text mb-6">Change Password</h3>
 
                         <div className="space-y-6 mb-8 max-w-md">
-                            <Input
+                            <PasswordInput
                                 label="Current Password"
-                                type="password"
                                 value={oldPassword}
                                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setOldPassword(e.target.value)}
                             />
-                            <Input
+                            <PasswordInput
                                 label="New Password"
-                                type="password"
                                 value={newPassword}
                                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewPassword(e.target.value)}
                             />

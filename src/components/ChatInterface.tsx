@@ -235,7 +235,7 @@ export function ChatInterface({
             </button>
 
             {isMenuOpen && (
-              <div className="absolute right-0 mt-2 w-56 bg-theme-bg shadow-xl border border-theme-border rounded-xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200">
+              <div className="absolute right-0 mt-2 w-56 bg-theme-bg shadow-xl border border-theme-border rounded-xl z-[100] animate-in fade-in zoom-in-95 duration-200" style={{overflow: 'visible'}}>
                 <div className="py-2">
                   <button
                     onClick={() => { setIsMenuOpen(false); if (onProfile) onProfile(); }}

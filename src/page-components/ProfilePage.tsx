@@ -4,6 +4,7 @@ import React, { useState, useRef } from 'react';
 import { DashboardLayout } from '../components/layout/DashboardLayout';
 import { Card } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
+import { PasswordInput } from '../components/ui/PasswordInput';
 import { Button } from '../components/ui/Button';
 import { Select } from '../components/ui/Select';
 import { Textarea } from '../components/ui/Textarea';
@@ -348,22 +349,19 @@ export function ProfilePage({ initialUser }: { initialUser?: any }) {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <Card className="w-full max-w-md p-6 space-y-4">
             <h3 className="text-xl font-bold text-theme-text">Change Password</h3>
-            <Input
-              type="password"
+            <PasswordInput
               label="Current Password"
               value={oldPassword}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setOldPassword(e.target.value)}
               placeholder="Enter current password"
             />
-            <Input
-              type="password"
+            <PasswordInput
               label="New Password"
               value={newPassword}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewPassword(e.target.value)}
               placeholder="Enter new password"
             />
-            <Input
-              type="password"
+            <PasswordInput
               label="Confirm New Password"
               value={confirmPassword}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConfirmPassword(e.target.value)}
@@ -407,8 +405,7 @@ export function ProfilePage({ initialUser }: { initialUser?: any }) {
             <p className="text-theme-text-secondary">
               This action cannot be undone. All your data will be permanently deleted.
             </p>
-            <Input
-              type="password"
+            <PasswordInput
               label="Confirm Password"
               value={deletePassword}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDeletePassword(e.target.value)}
