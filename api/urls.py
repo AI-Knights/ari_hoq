@@ -53,4 +53,7 @@ urlpatterns = [
 
     # Jitsi Meeting Generation
     path('chat/meeting/', views.StartMeetingView.as_view(), name='start-meeting'),
+
+    # Contact Form (public — no auth required)
+    path('contact/', views.ContactMessageView.as_view(), name='contact-message'),
 ]

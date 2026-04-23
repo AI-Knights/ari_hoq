@@ -166,6 +166,8 @@ EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'no-reply@projectyard.top')
+# Email address that receives contact form submissions
+ADMIN_CONTACT_EMAIL = os.environ.get('ADMIN_CONTACT_EMAIL', DEFAULT_FROM_EMAIL)
 
 # ---- CORS ----
 # IMPORTANT: CORS_ALLOW_ALL_ORIGINS cannot be used with CORS_ALLOW_CREDENTIALS=True.

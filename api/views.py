@@ -1383,3 +1383,54 @@ class StartMeetingView(APIView):
             'meeting_link': meeting_link,
             'message_id': msg.id
         }, status=status.HTTP_201_CREATED)
+
+
+# ---------------------------------------------------------------------------
+# Contact Form — public endpoint, sends email to admin via SMTP
+# ---------------------------------------------------------------------------
+
+class ContactMessageView(APIView):
+    """
+    POST /contact/
+    Public endpoint — no authentication required.
+    Accepts the contact form and fires an email to the admin address.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        from .email_service import send_contact_email
+
+        first_name   = (request.data.get('first_name') or '').strip()
+        last_name    = (request.data.get('last_name') or '').strip()
+        email        = (request.data.get('email') or '').strip()
+        subject_label = (request.data.get('subject') or 'General Inquiry').strip()
+        message      = (request.data.get('message') or '').strip()
+
+        if not email or not message:
+            return Response(
+                {'error': 'Email and message are required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Retrieve admin email from settings or fall back to DEFAULT_FROM_EMAIL
+        admin_email = getattr(djsettings, 'ADMIN_CONTACT_EMAIL', None) or djsettings.DEFAULT_FROM_EMAIL
+
+        try:
+            send_contact_email(
+                first_name=first_name,
+                last_name=last_name,
+                email=email,
+                subject_label=subject_label,
+                message=message,
+                admin_email=admin_email,
+            )
+        except Exception as exc:
+            return Response(
+                {'error': f'Failed to send message: {exc}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        return Response(
+            {'message': 'Your message has been sent. We will get back to you soon, in sha Allah!'},
+            status=status.HTTP_200_OK
+        )

@@ -97,3 +97,81 @@ def send_welcome_email(user):
     """
 
     _send_in_thread(subject, plain, [user.email], html_message=html)
+
+
+def send_contact_email(first_name: str, last_name: str, email: str, subject_label: str, message: str, admin_email: str):
+    """Send a contact form submission to the admin email address (async).
+    Sets Reply-To to the user's email so the admin can reply directly to them.
+    """
+    full_name = f"{first_name} {last_name}".strip() or email
+    subject = f"[QuranPartners Contact] {subject_label} — from {full_name}"
+
+    plain = (
+        f"New contact form submission\n"
+        f"============================\n"
+        f"Name:    {full_name}\n"
+        f"Email:   {email}\n"
+        f"Subject: {subject_label}\n\n"
+        f"Message:\n{message}\n\n"
+        f"Reply to this email to respond directly to {full_name}.\n"
+        f"— QuranPartners Contact System"
+    )
+
+    html = f"""
+    <div style="font-family:sans-serif;max-width:600px;margin:auto;padding:32px;
+                background:#0A1A3A;border-radius:12px;color:#fff;">
+        <h2 style="color:#D4AF37;font-family:serif;margin:0 0 16px;">New Contact Form Submission</h2>
+        <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+            <tr>
+                <td style="padding:8px 12px;background:#0f2347;border-radius:4px 0 0 4px;
+                           color:#9ca3af;font-size:13px;width:100px;">Name</td>
+                <td style="padding:8px 12px;background:#0f2347;border-radius:0 4px 4px 0;
+                           color:#fff;font-size:14px;">{full_name}</td>
+            </tr>
+            <tr><td colspan="2" style="padding:3px;"></td></tr>
+            <tr>
+                <td style="padding:8px 12px;background:#0f2347;border-radius:4px 0 0 4px;
+                           color:#9ca3af;font-size:13px;">Email</td>
+                <td style="padding:8px 12px;background:#0f2347;border-radius:0 4px 4px 0;
+                           color:#D4AF37;font-size:14px;">{email}</td>
+            </tr>
+            <tr><td colspan="2" style="padding:3px;"></td></tr>
+            <tr>
+                <td style="padding:8px 12px;background:#0f2347;border-radius:4px 0 0 4px;
+                           color:#9ca3af;font-size:13px;">Subject</td>
+                <td style="padding:8px 12px;background:#0f2347;border-radius:0 4px 4px 0;
+                           color:#fff;font-size:14px;">{subject_label}</td>
+            </tr>
+        </table>
+        <div style="background:#0f2347;border-left:4px solid #D4AF37;border-radius:4px;
+                    padding:16px;margin-top:8px;">
+            <p style="color:#9ca3af;font-size:12px;margin:0 0 8px;text-transform:uppercase;
+                      letter-spacing:0.05em;">Message</p>
+            <p style="color:#fff;font-size:14px;line-height:1.6;white-space:pre-wrap;margin:0;">{message}</p>
+        </div>
+        <hr style="border-color:#1e3a5f;margin:24px 0;">
+        <p style="color:#9ca3af;font-size:13px;">
+            💬 <strong style="color:#fff;">Hit Reply</strong> to respond directly to
+            <strong style="color:#D4AF37;">{full_name}</strong> at {email}
+        </p>
+        <p style="color:#9ca3af;font-size:12px;">— QuranPartners Contact System</p>
+    </div>
+    """
+
+    def _task():
+        try:
+            from django.core.mail import EmailMultiAlternatives
+            from django.conf import settings as djconf
+            msg = EmailMultiAlternatives(
+                subject=subject,
+                body=plain,
+                from_email=djconf.DEFAULT_FROM_EMAIL,
+                to=[admin_email],
+                reply_to=[f"{full_name} <{email}>"],
+            )
+            msg.attach_alternative(html, "text/html")
+            msg.send(fail_silently=False)
+        except Exception:
+            pass
+
+    threading.Thread(target=_task, daemon=True).start()
