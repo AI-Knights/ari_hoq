@@ -11,6 +11,7 @@ import { Input } from '../components/ui/Input';
 import { Textarea } from '../components/ui/Textarea';
 import { Button } from '../components/ui/Button';
 import { Mail, MessageSquare, MapPin, Send, CheckCircle, AlertCircle } from 'lucide-react';
+import { SocialIcons } from '../components/SocialIcons';
 
 async function sendContactMessage(payload: {
   first_name: string;
@@ -128,6 +129,11 @@ export function ContactPage() {
                       <h3 className="font-bold text-theme-text mb-1">Global Community</h3>
                       <p className="text-theme-text-secondary text-sm">Serving Muslims around the world</p>
                     </div>
+                  </div>
+
+                  <div>
+                    <h3 className="font-bold text-theme-text mb-3">Follow Us</h3>
+                    <SocialIcons />
                   </div>
                 </div>
               </Card>

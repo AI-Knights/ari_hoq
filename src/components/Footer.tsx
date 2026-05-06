@@ -1,5 +1,6 @@
 import React, { memo } from 'react';
 import Link from 'next/link';
+import { SocialIcons } from './SocialIcons';
 
 export function Footer() {
   return (
@@ -99,16 +100,11 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="border-t border-white/5 pt-8 flex flex-col md:flex-row justify-between items-center">
+        <div className="border-t border-white/5 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-gray-500 text-sm">
-            © {new Date().getFullYear()} Quran Partners. All rights reserved.
+            © {new Date().getFullYear()} QuranMemorizationPartner. All rights reserved.
           </p>
-          <div className="flex space-x-6 mt-4 md:mt-0">
-            {/* Social icons placeholders */}
-            <div className="w-5 h-5 bg-gray-600 hover:bg-[#D4AF37] transition-colors rounded-full cursor-pointer"></div>
-            <div className="w-5 h-5 bg-gray-600 hover:bg-[#D4AF37] transition-colors rounded-full cursor-pointer"></div>
-            <div className="w-5 h-5 bg-gray-600 hover:bg-[#D4AF37] transition-colors rounded-full cursor-pointer"></div>
-          </div>
+          <SocialIcons iconClassName="!bg-gray-700 !border-gray-600 !text-gray-300 hover:!bg-[#D4AF37] hover:!text-[#0A1A3A]" />
         </div>
       </div>
     </footer>);

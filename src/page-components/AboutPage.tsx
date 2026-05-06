@@ -9,6 +9,7 @@ import { IslamicPatterns } from '../components/IslamicPatterns';
 import { Globe } from '../components/Globe';
 import { Card } from '../components/ui/Card';
 import { Heart, Shield, Zap, Users } from 'lucide-react';
+import { SocialIcons } from '../components/SocialIcons';
 
 export function AboutPage() {
   const features = [
@@ -168,6 +169,25 @@ export function AboutPage() {
               </motion.div>
             ))}
           </div>
+        </section>
+
+        {/* Follow Us Section */}
+        <section className="container mx-auto px-4 mb-24 text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <h2 className="text-2xl md:text-3xl font-serif font-bold text-theme-text mb-4">
+              Follow Our <span className="text-[#D4AF37]">Journey</span>
+            </h2>
+            <p className="text-theme-text-secondary mb-8 max-w-xl mx-auto">
+              Stay connected with our growing community on social media.
+            </p>
+            <div className="flex justify-center">
+              <SocialIcons iconClassName="!w-11 !h-11" />
+            </div>
+          </motion.div>
         </section>
       </main>
 

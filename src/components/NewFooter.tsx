@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useTheme } from '../contexts/ThemeContext';
-import { Facebook, Twitter, Instagram, Linkedin, Mail, Phone, MapPin, Youtube } from 'lucide-react';
+import { SocialIcons } from './SocialIcons';
 
 export function NewFooter() {
     const { theme } = useTheme();
@@ -71,11 +71,7 @@ export function NewFooter() {
                                 Connecting hearts through the Quran. A global platform for
                                 memorization partners.
                             </p>
-                            <div className="flex space-x-6 mt-4 md:mt-0">
-                                <div className="w-5 h-5 bg-theme-subtle border border-theme-border hover:bg-[#D4AF37] transition-colors rounded-full cursor-pointer"></div>
-                                <div className="w-5 h-5 bg-theme-subtle border border-theme-border hover:bg-[#D4AF37] transition-colors rounded-full cursor-pointer"></div>
-                                <div className="w-5 h-5 bg-theme-subtle border border-theme-border hover:bg-[#D4AF37] transition-colors rounded-full cursor-pointer"></div>
-                            </div>
+                            <SocialIcons className="mt-4 md:mt-0 flex-wrap" />
                         </div>
 
                         {/* Navigation */}
@@ -115,10 +111,11 @@ export function NewFooter() {
                     </div>
 
                     {/* Bottom Bar */}
-                    <div className="border-t border-theme-border pt-8 flex flex-col md:flex-row justify-between items-center">
+                    <div className="border-t border-theme-border pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
                         <p className="text-theme-muted text-sm">
-                            © {new Date().getFullYear()} Quran Partners. All rights reserved.
+                            © {new Date().getFullYear()} QuranMemorizationPartner. All rights reserved.
                         </p>
+                        <SocialIcons />
                     </div>
                 </div>
             </footer>
