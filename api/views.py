@@ -1434,3 +1434,28 @@ class ContactMessageView(APIView):
             {'message': 'Your message has been sent. We will get back to you soon, in sha Allah!'},
             status=status.HTTP_200_OK
         )
+
+# ---------------------------------------------------------------------------
+# Public Platform Stats
+# ---------------------------------------------------------------------------
+
+class PublicStatsView(APIView):
+    """
+    GET /public-stats/
+    Public endpoint to get high-level platform statistics (e.g. total users).
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        from .models import UserAccount as User
+        total_users = User.objects.filter(is_active=True).count()
+        
+        # We can add an offset or logic to make the number look like 10,253 if db is empty,
+        # but the user said "the number of users we have on our platform db".
+        # However, to avoid showing '1' or '0' if the DB is fresh while testing, 
+        # we might just return the exact count and let the frontend decide.
+        # "this should pull from the backend. the number of users we have on our platform db"
+        return Response({
+            'total_users': total_users
+        })
+

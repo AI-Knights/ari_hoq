@@ -56,4 +56,7 @@ urlpatterns = [
 
     # Contact Form (public — no auth required)
     path('contact/', views.ContactMessageView.as_view(), name='contact-message'),
+
+    # Public Platform Stats
+    path('public-stats/', views.PublicStatsView.as_view(), name='public-stats'),
 ]
