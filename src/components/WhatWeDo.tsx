@@ -19,13 +19,14 @@ function FeatureCard({ icon, title, description, index }: FeatureCardProps) {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: index * 0.1 }}
+            className="h-full"
         >
-            <Card className="p-6 text-center bg-theme-card border-theme-border hover:border-[#D4AF37]/30 transition-all duration-300 group">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[#D4AF37]/10 flex items-center justify-center group-hover:bg-[#D4AF37]/20 transition-colors">
+            <Card className="h-full flex flex-col p-6 text-center bg-theme-card border-theme-border hover:border-[#D4AF37]/30 transition-all duration-300 group">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[#D4AF37]/10 flex items-center justify-center group-hover:bg-[#D4AF37]/20 transition-colors flex-shrink-0">
                     <div className="text-[#D4AF37]">{icon}</div>
                 </div>
-                <h3 className="text-lg font-bold text-theme-text mb-2 font-serif">{title}</h3>
-                <p className="text-sm text-theme-text-secondary leading-relaxed">{description}</p>
+                <h3 className="text-lg font-bold text-theme-text mb-2 font-serif flex-shrink-0">{title}</h3>
+                <p className="text-sm text-theme-text-secondary leading-relaxed flex-grow">{description}</p>
             </Card>
         </motion.div>
     );

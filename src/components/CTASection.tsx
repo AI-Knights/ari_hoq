@@ -46,12 +46,14 @@ export function CTASection() {
                 Get Started Free
                 <ArrowRight className="ml-2 w-5 h-5" />
               </button>
-              <button
-                onClick={() => router.push('/about')}
-                className="px-8 py-4 rounded-full font-medium text-theme-text border border-theme-border hover:bg-theme-bg-hover transition-all">
+              <a
+                href="https://discord.gg/HXTbFhhm"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-8 py-4 rounded-full font-medium text-theme-text border border-theme-border hover:bg-theme-bg-hover transition-all text-center">
 
-                Learn More
-              </button>
+                Join Global Community
+              </a>
             </div>
 
             <p className="text-sm text-theme-text-muted">

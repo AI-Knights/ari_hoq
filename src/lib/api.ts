@@ -143,6 +143,9 @@ export const api = {
             return apiFetch('/auth/complete-onboarding/', { method: 'POST', body: JSON.stringify({}) });
         },
     },
+    public: {
+        stats: () => apiFetch<{ total_users: number }>('/public-stats/', { skipAuth: true }),
+    },
     dashboard: { stats: () => apiFetch('/dashboard/stats/') },
     availability: {
         list: () => apiFetch('/availability/'),

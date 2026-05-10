@@ -7,7 +7,6 @@ import { Navigation } from './Navigation';
 import { HeroSection } from './HeroSection';
 import { WhatWeDo } from './WhatWeDo';
 import { HowItWorks } from './HowItWorks';
-import { Testimonials } from './Testimonials';
 import { CTASection } from './CTASection';
 import { NewFooter } from './NewFooter';
 
@@ -24,7 +23,6 @@ export function LandingPage() {
         <HeroSection />
         <WhatWeDo />
         <HowItWorks />
-        <Testimonials />
         <CTASection />
         <NewFooter />
       </div>

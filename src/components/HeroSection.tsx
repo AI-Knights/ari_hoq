@@ -1,16 +1,39 @@
 'use client';
 
-import React, { memo } from 'react';
+import React, { memo, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Globe } from './Globe';
 import { ArrowRight } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { Avatar } from './ui/Avatar';
+import { api } from '../lib/api';
 
 export function HeroSection() {
   const { user } = useAuth();
   const router = useRouter();
+  const [userCount, setUserCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    // Fetch authentic stats from the backend database
+    const fetchStats = async () => {
+      try {
+        const data = await api.public.stats();
+        if (data && typeof data.total_users === 'number') {
+          setUserCount(data.total_users);
+        }
+      } catch (e) {
+        console.error('Failed to fetch user stats', e);
+      }
+    };
+
+    fetchStats();
+    
+    // Poll every 30 seconds for new users joining
+    const interval = setInterval(fetchStats, 30000); 
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <section className="relative min-h-screen flex flex-col justify-center items-center pt-32 md:pt-40 lg:pt-48 overflow-hidden">
       <div className="container mx-auto px-4 z-10 grid md:grid-cols-2 gap-12 items-center">
@@ -87,7 +110,7 @@ export function HeroSection() {
                 </div>
               ))}
             </div>
-            <p>Join 10,000+ memorizers today</p>
+            <p>Join <span className="font-bold text-[#D4AF37] transition-all duration-500">{userCount !== null ? userCount.toLocaleString() : '...'}</span> memorizers today</p>
           </div>
         </motion.div>
 

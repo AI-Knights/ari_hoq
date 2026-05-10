@@ -6,7 +6,6 @@ import { Navigation } from '../components/Navigation';
 import { Footer } from '../components/Footer';
 import { StarField } from '../components/StarField';
 import { IslamicPatterns } from '../components/IslamicPatterns';
-import { Globe } from '../components/Globe';
 import { Card } from '../components/ui/Card';
 import { Heart, Shield, Zap, Users } from 'lucide-react';
 import { SocialIcons } from '../components/SocialIcons';
@@ -80,59 +79,80 @@ export function AboutPage() {
           </motion.p>
         </section>
 
-        {/* Story Section */}
+        {/* Founder Story Section */}
         <section className="container mx-auto px-4 mb-32">
-          <div className="grid md:grid-cols-2 gap-16 items-center">
+          <div className="max-w-6xl mx-auto">
             <motion.div
-              initial={{
-                opacity: 0,
-                x: -50
-              }}
-              whileInView={{
-                opacity: 1,
-                x: 0
-              }}
-              viewport={{
-                once: true
-              }}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-center mb-16"
             >
-              <h2 className="text-3xl md:text-4xl font-serif font-bold mb-6 text-theme-text">
-                Why We Started
+              <h2 className="text-3xl md:text-4xl font-serif font-bold text-theme-text mb-4">
+                Meet the <span className="text-[#D4AF37]">Founder</span>
               </h2>
-              <div className="space-y-6 text-theme-text-secondary leading-relaxed">
-                <p>
-                  The journey of Hifz (memorization) is noble but challenging.
-                  Many start with enthusiasm but struggle to maintain consistency
-                  without a companion to recite to.
-                </p>
-                <p>
-                  In traditional settings, students would pair up in circles at
-                  the mosque. We asked: how can we bring this blessed dynamic to
-                  those who may be isolated, busy, or far from a community?
-                </p>
-                <p>
-                  Quran Partners was born from this need—a digital halaqah that
-                  transcends borders, bringing the ancient tradition of mutual
-                  review to the modern world.
-                </p>
-              </div>
+              <div className="w-24 h-1 bg-[#D4AF37] mx-auto rounded-full opacity-50"></div>
             </motion.div>
-            <motion.div
-              initial={{
-                opacity: 0,
-                scale: 0.8
-              }}
-              whileInView={{
-                opacity: 1,
-                scale: 1
-              }}
-              viewport={{
-                once: true
-              }}
-              className="relative h-[400px] flex items-center justify-center"
-            >
-              <Globe />
-            </motion.div>
+
+            <div className="grid md:grid-cols-2 gap-16 items-center">
+              <motion.div
+                initial={{ opacity: 0, x: -50 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                className="relative"
+              >
+                <div className="relative h-[500px] w-full rounded-2xl overflow-hidden shadow-2xl border border-theme-border group">
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent z-10 transition-opacity duration-300"></div>
+                  <img 
+                    src="/images/founder.jpg" 
+                    alt="Ari Hoq - Founder" 
+                    className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-105"
+                  />
+                  <div className="absolute bottom-0 left-0 p-8 z-20 w-full bg-gradient-to-t from-black/80 to-transparent">
+                    <h3 className="text-2xl font-bold text-white font-serif">Ari Hoq</h3>
+                    <p className="text-[#D4AF37] font-medium">Founder & Visionary</p>
+                  </div>
+                </div>
+                
+                {/* Decorative elements */}
+                <div className="absolute -top-4 -left-4 w-24 h-24 border-t-2 border-l-2 border-[#D4AF37] rounded-tl-2xl opacity-50"></div>
+                <div className="absolute -bottom-4 -right-4 w-24 h-24 border-b-2 border-r-2 border-[#D4AF37] rounded-br-2xl opacity-50"></div>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, x: 50 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                className="space-y-6"
+              >
+                <h3 className="text-2xl md:text-3xl font-serif font-bold text-theme-text">
+                  A Journey of Connection
+                </h3>
+                <div className="space-y-4 text-theme-text-secondary leading-relaxed">
+                  <p className="text-lg italic text-theme-text border-l-4 border-[#D4AF37] pl-4 py-2 bg-theme-bg-secondary/30 rounded-r-lg">
+                    &quot;The journey of Hifz (memorization) is noble but challenging. True progress happens when we connect and support each other.&quot;
+                  </p>
+                  <p>
+                    Many start their Quranic memorization with immense enthusiasm, but struggle to maintain consistency without a dedicated companion to recite to. In traditional settings, students would pair up in circles at the mosque, a blessed dynamic that brings discipline and spiritual bonding.
+                  </p>
+                  <p>
+                    I asked a simple question: <strong className="text-theme-text font-medium">How can we bring this beautiful tradition to those who may be isolated, busy, or far from a community?</strong>
+                  </p>
+                  <p>
+                    Quran Partners was born from this exact need. I envisioned a digital halaqah that transcends geographical borders, bringing the ancient tradition of mutual review to the modern world. My goal is to ensure no one has to walk the path of Hifz alone.
+                  </p>
+                </div>
+                
+                <div className="pt-6">
+                  <a href="/contact" className="inline-flex items-center justify-center px-6 py-3 rounded-xl bg-theme-bg-secondary text-theme-text border border-theme-border hover:border-[#D4AF37]/50 hover:bg-[#D4AF37]/5 transition-all duration-300 font-medium group">
+                    Get in Touch
+                    <svg className="w-5 h-5 ml-2 transform group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    </svg>
+                  </a>
+                </div>
+              </motion.div>
+            </div>
           </div>
         </section>
 
