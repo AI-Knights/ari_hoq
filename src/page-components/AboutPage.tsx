@@ -105,11 +105,11 @@ export function AboutPage() {
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent z-10 transition-opacity duration-300"></div>
                   <img 
                     src="/images/founder.jpg" 
-                    alt="Ari Hoq - Founder" 
-                    className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-105"
+                    alt="Anamul Hoque - Founder" 
+                    className="w-full h-full object-cover object-top transition-transform duration-700 md:group-hover:scale-105"
                   />
                   <div className="absolute bottom-0 left-0 p-8 z-20 w-full bg-gradient-to-t from-black/80 to-transparent">
-                    <h3 className="text-2xl font-bold text-white font-serif">Ari Hoq</h3>
+                    <h3 className="text-2xl font-bold text-white font-serif">Anamul Hoque</h3>
                     <p className="text-[#D4AF37] font-medium">Founder & Visionary</p>
                   </div>
                 </div>
