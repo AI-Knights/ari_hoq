@@ -93,6 +93,10 @@ export function HeroSection() {
             </button>
           </div>
 
+          <div className="pt-8 text-sm text-theme-text-secondary">
+            <p>Join <span className="font-bold text-[#D4AF37] transition-all duration-500">{userCount !== null ? userCount.toLocaleString() : '...'}</span> memorizers today</p>
+          </div>
+
 
         </motion.div>
 
