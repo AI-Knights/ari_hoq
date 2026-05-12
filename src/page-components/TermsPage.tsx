@@ -226,10 +226,10 @@ export function TermsPage() {
                 {'contact' in section && section.contact && (
                   <a
                     href={`mailto:${section.contact}`}
-                    className="inline-flex items-center gap-2 mt-2 text-[#D4AF37] hover:underline font-medium"
+                    className="inline-flex items-start sm:items-center gap-2 mt-2 text-[#D4AF37] hover:underline font-medium break-all"
                   >
-                    <Mail className="w-4 h-4" />
-                    {section.contact}
+                    <Mail className="w-4 h-4 flex-shrink-0 mt-1 sm:mt-0" />
+                    <span>{section.contact}</span>
                   </a>
                 )}
               </motion.section>

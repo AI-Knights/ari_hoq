@@ -53,11 +53,7 @@ export function HeroSection() {
           }}
           className="text-left space-y-8">
 
-          <div className="inline-block px-4 py-1 rounded-full border border-[#D4AF37]/30 bg-[#D4AF37]/10 backdrop-blur-sm">
-            <span className="text-[#D4AF37] text-sm font-medium tracking-wider uppercase">
-              Global Community
-            </span>
-          </div>
+
 
           <h1 className="text-5xl md:text-6xl lg:text-7xl font-serif font-bold leading-tight text-theme-text">
             Connect with <br />
@@ -97,21 +93,7 @@ export function HeroSection() {
             </button>
           </div>
 
-          <div className="flex items-center space-x-4 pt-8 text-sm text-theme-text-secondary">
-            <div className="flex -space-x-2">
-              {['A', 'M', 'F', 'I', 'O'].map((initial, i) => (
-                <div
-                  key={i}
-                  className="rounded-full border-2 overflow-hidden"
-                  style={{
-                    borderColor: 'var(--theme-bg)'
-                  }}>
-                  <Avatar fallback={initial} size="sm" />
-                </div>
-              ))}
-            </div>
-            <p>Join <span className="font-bold text-[#D4AF37] transition-all duration-500">{userCount !== null ? userCount.toLocaleString() : '...'}</span> memorizers today</p>
-          </div>
+
         </motion.div>
 
         {/* Globe Visualization */}

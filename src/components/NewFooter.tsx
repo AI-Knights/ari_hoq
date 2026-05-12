@@ -18,10 +18,6 @@ export function NewFooter() {
                         Help us reach every ummah
                     </h2>
 
-                    <button className="px-12 py-4 rounded-full border-2 border-[#D4AF37] text-[#D4AF37] font-bold text-lg hover:bg-[#D4AF37] hover:text-[#0A1A3A] transition-all mb-8">
-                        Donate
-                    </button>
-
                     <div className="max-w-2xl mx-auto">
                         <p className="text-theme-text-secondary mb-2">
                             Every dollar brings someone closer to the Qur'an.
@@ -105,7 +101,6 @@ export function NewFooter() {
                             <ul className="space-y-4 text-sm text-theme-text-secondary">
                                 <li><Link href="/privacy" className="hover:text-[#D4AF37] transition-colors">Privacy Policy</Link></li>
                                 <li><Link href="/terms" className="hover:text-[#D4AF37] transition-colors">Terms of Service</Link></li>
-                                <li><Link href="/guidelines" className="hover:text-[#D4AF37] transition-colors">Community Guidelines</Link></li>
                             </ul>
                         </div>
                     </div>
