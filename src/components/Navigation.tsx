@@ -43,8 +43,14 @@ export function Navigation() {
     }
     const element = document.getElementById(id);
     if (element) {
-      // Need a small timeout if just mounted, but since we are already on '/', it's immediate
       element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const handleActivePageClick = (path: string) => {
+    setIsMobileMenuOpen(false);
+    if (pathname === path) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
@@ -82,7 +88,11 @@ export function Navigation() {
             >
               How it Works
             </button>
-            <Link href="/about" className={getLinkClass('/about')}>
+            <Link
+              href="/about"
+              className={getLinkClass('/about')}
+              onClick={() => handleActivePageClick('/about')}
+            >
               About
             </Link>
 
@@ -145,7 +155,11 @@ export function Navigation() {
                 <button onClick={() => scrollToSection('how-it-works')} className="text-theme-text-secondary hover:text-[#D4AF37] py-3 px-2 text-left rounded-lg hover:bg-theme-hover transition-colors block w-full">
                   How it Works
                 </button>
-                <Link href="/about" className={`${isActive('/about') ? 'text-[#D4AF37]' : 'text-theme-text-secondary hover:text-[#D4AF37]'} py-3 px-2 rounded-lg hover:bg-theme-hover transition-colors block`} onClick={() => setIsMobileMenuOpen(false)}>
+                <Link
+                  href="/about"
+                  className={`${isActive('/about') ? 'text-[#D4AF37]' : 'text-theme-text-secondary hover:text-[#D4AF37]'} py-3 px-2 rounded-lg hover:bg-theme-hover transition-colors block`}
+                  onClick={() => handleActivePageClick('/about')}
+                >
                   About
                 </Link>
 

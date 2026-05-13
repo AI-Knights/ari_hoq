@@ -59,7 +59,13 @@ body {
   background: linear-gradient(to bottom, var(--theme-bg), var(--theme-bg-secondary));
   color: var(--theme-text);
   overflow-x: hidden;
+  max-width: 100vw;
   transition: background 0.3s ease, color 0.3s ease;
+}
+
+html {
+  overflow-x: hidden;
+  max-width: 100vw;
 }
 
 h1,

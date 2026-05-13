@@ -3,11 +3,31 @@
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from '../contexts/ThemeContext';
 import { SocialIcons } from './SocialIcons';
 
 export function NewFooter() {
     const { theme } = useTheme();
+    const pathname = usePathname();
+    const router = useRouter();
+
+    const handleHowItWorks = () => {
+        if (pathname === '/') {
+            const element = document.getElementById('how-it-works');
+            if (element) element.scrollIntoView({ behavior: 'smooth' });
+        } else {
+            router.push('/#how-it-works');
+        }
+    };
+
+    const handlePageLink = (path: string) => {
+        if (pathname === path) {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+            router.push(path);
+        }
+    };
 
     return (
         <>
@@ -75,10 +95,7 @@ export function NewFooter() {
                             <h4 className="text-theme-text font-bold mb-6">Platform</h4>
                             <ul className="space-y-4 text-sm text-theme-text-secondary">
                                 <li>
-                                    <button onClick={() => {
-                                        const element = document.getElementById('how-it-works');
-                                        if (element) element.scrollIntoView({ behavior: 'smooth' });
-                                    }} className="hover:text-[#D4AF37] transition-colors">
+                                    <button onClick={handleHowItWorks} className="hover:text-[#D4AF37] transition-colors text-left">
                                         How it Works
                                     </button>
                                 </li>
@@ -91,8 +108,16 @@ export function NewFooter() {
                         <div className="text-center sm:text-left">
                             <h4 className="text-theme-text font-bold mb-6">Resources</h4>
                             <ul className="space-y-4 text-sm text-theme-text-secondary">
-                                <li><Link href="/about" className="hover:text-[#D4AF37] transition-colors">About Us</Link></li>
-                                <li><Link href="/contact" className="hover:text-[#D4AF37] transition-colors">Contact</Link></li>
+                                <li>
+                                    <button onClick={() => handlePageLink('/about')} className="hover:text-[#D4AF37] transition-colors text-left">
+                                        About Us
+                                    </button>
+                                </li>
+                                <li>
+                                    <button onClick={() => handlePageLink('/contact')} className="hover:text-[#D4AF37] transition-colors text-left">
+                                        Contact
+                                    </button>
+                                </li>
                             </ul>
                         </div>
 

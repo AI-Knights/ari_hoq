@@ -1,8 +1,33 @@
-import React, { memo } from 'react';
+'use client';
+
+import React from 'react';
 import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
 import { SocialIcons } from './SocialIcons';
 
 export function Footer() {
+  const pathname = usePathname();
+  const router = useRouter();
+
+  // "How it Works" — scroll if on home, navigate otherwise
+  const handleHowItWorks = () => {
+    if (pathname === '/') {
+      const element = document.getElementById('how-it-works');
+      if (element) element.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      router.push('/#how-it-works');
+    }
+  };
+
+  // Same-page link — scroll to top; otherwise navigate normally
+  const handlePageLink = (path: string) => {
+    if (pathname === path) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      router.push(path);
+    }
+  };
+
   return (
     <footer className="relative z-10 border-t border-white/5 bg-[#0A1A3A]/80 backdrop-blur-md pt-16 pb-8">
       <div className="container mx-auto px-4">
@@ -11,7 +36,6 @@ export function Footer() {
             <Link
               href="/"
               className="text-2xl font-bold font-serif text-white tracking-wide block mb-6">
-
               Quran<span className="text-[#D4AF37]">Partners</span>
             </Link>
             <p className="text-gray-400 text-sm leading-relaxed">
@@ -25,15 +49,8 @@ export function Footer() {
             <ul className="space-y-4 text-sm text-gray-400">
               <li>
                 <button
-                  onClick={() => {
-                    const element = document.getElementById('how-it-works');
-                    if (element)
-                      element.scrollIntoView({
-                        behavior: 'smooth'
-                      });
-                  }}
-                  className="hover:text-[#D4AF37] transition-colors">
-
+                  onClick={handleHowItWorks}
+                  className="hover:text-[#D4AF37] transition-colors text-left">
                   How it Works
                 </button>
               </li>
@@ -41,7 +58,6 @@ export function Footer() {
                 <Link
                   href="/auth"
                   className="hover:text-[#D4AF37] transition-colors">
-
                   Find a Partner
                 </Link>
               </li>
@@ -49,7 +65,6 @@ export function Footer() {
                 <Link
                   href="/auth"
                   className="hover:text-[#D4AF37] transition-colors">
-
                   Get Started
                 </Link>
               </li>
@@ -60,20 +75,18 @@ export function Footer() {
             <h4 className="text-white font-bold mb-6">Resources</h4>
             <ul className="space-y-4 text-sm text-gray-400">
               <li>
-                <Link
-                  href="/about"
-                  className="hover:text-[#D4AF37] transition-colors">
-
+                <button
+                  onClick={() => handlePageLink('/about')}
+                  className="hover:text-[#D4AF37] transition-colors text-left">
                   About Us
-                </Link>
+                </button>
               </li>
               <li>
-                <Link
-                  href="/contact"
-                  className="hover:text-[#D4AF37] transition-colors">
-
+                <button
+                  onClick={() => handlePageLink('/contact')}
+                  className="hover:text-[#D4AF37] transition-colors text-left">
                   Contact
-                </Link>
+                </button>
               </li>
             </ul>
           </div>
@@ -91,11 +104,6 @@ export function Footer() {
                   Terms of Service
                 </Link>
               </li>
-              <li>
-                <Link href="/guidelines" className="hover:text-[#D4AF37] transition-colors">
-                  Community Guidelines
-                </Link>
-              </li>
             </ul>
           </div>
         </div>
@@ -107,6 +115,6 @@ export function Footer() {
           <SocialIcons iconClassName="!bg-gray-700 !border-gray-600 !text-gray-300 hover:!bg-[#D4AF37] hover:!text-[#0A1A3A]" />
         </div>
       </div>
-    </footer>);
-
+    </footer>
+  );
 }

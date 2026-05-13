@@ -53,7 +53,11 @@ export function HeroSection() {
           }}
           className="text-left space-y-8">
 
-
+          <div className="inline-block px-4 py-1 rounded-full border border-[#D4AF37]/30 bg-[#D4AF37]/10 backdrop-blur-sm">
+            <span className="text-[#D4AF37] text-sm font-medium tracking-wider uppercase">
+              Global Community
+            </span>
+          </div>
 
           <h1 className="text-5xl md:text-6xl lg:text-7xl font-serif font-bold leading-tight text-theme-text">
             Connect with <br />
