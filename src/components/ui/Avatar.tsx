@@ -36,7 +36,7 @@ export function Avatar({
   return (
     <div className={`relative inline-flex items-center justify-center ${className}`}>
       <div
-        className={`${className.includes('w-') ? 'w-full h-full' : sizes[size]} rounded-full overflow-hidden bg-theme-subtle border border-[#D4AF37]/20 flex items-center justify-center`}>
+        className={`${className.includes('w-') ? 'w-full h-full' : sizes[size]} rounded-full overflow-hidden bg-theme-bg border border-[#D4AF37]/30 flex items-center justify-center`}>
 
         {src ? (
           <img

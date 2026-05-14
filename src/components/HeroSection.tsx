@@ -97,7 +97,16 @@ export function HeroSection() {
             </button>
           </div>
 
-          <div className="pt-8 text-sm text-theme-text-secondary">
+          <div className="flex items-center space-x-4 pt-8 text-sm text-theme-text-secondary">
+            <div className="flex -space-x-3">
+              {['Q', 'U', 'R', 'A', 'N'].map((initial, i) => (
+                <Avatar
+                  key={i}
+                  fallback={initial}
+                  size="sm"
+                />
+              ))}
+            </div>
             <p>Join <span className="font-bold text-[#D4AF37] transition-all duration-500">{userCount !== null ? userCount.toLocaleString() : '...'}</span> memorizers today</p>
           </div>
 
