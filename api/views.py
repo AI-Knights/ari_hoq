@@ -15,6 +15,7 @@ from django.utils import timezone
 from django.conf import settings as djsettings
 
 from .tokens import CustomRefreshToken
+from .throttles import PublicStatsThrottle
 from .email_service import send_otp_email, send_welcome_email
 from .models import OTP, HifzProgress, PartnerPreference, Availability, Friendship, PartnerRequest, Message, Report
 from .serializers import (
