@@ -1445,6 +1445,7 @@ class PublicStatsView(APIView):
     Public endpoint to get high-level platform statistics (e.g. total users).
     """
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [PublicStatsThrottle]
 
     def get(self, request):
         from .models import UserAccount as User

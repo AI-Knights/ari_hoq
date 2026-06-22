@@ -141,6 +141,7 @@ REST_FRAMEWORK = {
         'anon': '100/day',
         'user': '1000/day',
         '2fa_verify': '5/minute', # Block brute-force on 6-digit codes
+        'public_stats': '60/minute', # Dedicated rate for polling public stats
     },
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 50,
