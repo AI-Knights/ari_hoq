@@ -21,7 +21,7 @@ async function handler(
     { params }: { params: Promise<{ path: string[] }> }
 ) {
     const { path } = await params;
-    
+
     // Construct the target URL safely
     const searchParams = request.nextUrl.search;
     const cleanPath = path.join('/');
@@ -38,21 +38,27 @@ async function handler(
     if (accessToken) {
         forwardHeaders.set('Authorization', `Bearer ${accessToken}`);
     }
-    
+
     // Explicitly pass content-type if the client sent it
     const contentType = request.headers.get('content-type');
     if (contentType) {
         forwardHeaders.set('Content-Type', contentType);
     }
-    
+
     // Explicitly pass Accept header if client sent it
     const accept = request.headers.get('accept');
     if (accept) {
         forwardHeaders.set('Accept', accept);
     }
 
+    // Pass the original client IP to prevent Django from rate-limiting the proxy server
+    const clientIp = request.ip || request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip');
+    if (clientIp) {
+        forwardHeaders.set('X-Forwarded-For', clientIp);
+    }
+
     const hasBody = request.method !== 'GET' && request.method !== 'HEAD';
-    
+
     // Read the body fully into memory before forwarding to prevent stream truncation errors
     let rawBody: ArrayBuffer | undefined = undefined;
     if (hasBody) {
@@ -61,18 +67,28 @@ async function handler(
     }
 
     try {
-        const djangoRes = await fetch(finalUrl, {
+        const isPublicStats = cleanPath === 'public-stats' || cleanPath === 'public-stats/';
+        
+        const fetchOptions: RequestInit = {
             method: request.method,
             headers: forwardHeaders,
             body: hasBody ? rawBody : undefined,
-            cache: 'no-store'
-        });
+        };
 
-    // Return Django's response as-is (preserves Set-Cookie, Content-Type, etc.)
-    return new NextResponse(djangoRes.body, {
-        status: djangoRes.status,
-        headers: djangoRes.headers,
-    });
+        // Cache public stats aggressively on the Next.js server for 60 seconds
+        if (isPublicStats && request.method === 'GET') {
+            fetchOptions.next = { revalidate: 60 };
+        } else {
+            fetchOptions.cache = 'no-store';
+        }
+
+        const djangoRes = await fetch(finalUrl, fetchOptions);
+
+        // Return Django's response as-is (preserves Set-Cookie, Content-Type, etc.)
+        return new NextResponse(djangoRes.body, {
+            status: djangoRes.status,
+            headers: djangoRes.headers,
+        });
     } catch (error: any) {
         console.error('[NEXTJS PROXY] Error reaching Django Backend:', error);
         return NextResponse.json(
@@ -82,8 +98,8 @@ async function handler(
     }
 }
 
-export const GET    = handler;
-export const POST   = handler;
-export const PUT    = handler;
-export const PATCH  = handler;
+export const GET = handler;
+export const POST = handler;
+export const PUT = handler;
+export const PATCH = handler;
 export const DELETE = handler;
