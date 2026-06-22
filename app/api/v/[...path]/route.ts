@@ -52,7 +52,7 @@ async function handler(
     }
 
     // Pass the original client IP to prevent Django from rate-limiting the proxy server
-    const clientIp = request.ip || request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip');
+    const clientIp = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip');
     if (clientIp) {
         forwardHeaders.set('X-Forwarded-For', clientIp);
     }
